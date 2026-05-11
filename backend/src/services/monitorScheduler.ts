@@ -3,7 +3,7 @@ import { providerStore } from './providerStore';
 import { monitorConfigStore, MonitorTarget } from './monitorConfigStore';
 import { testProviderConnection } from '../providers/adapter';
 import { monitorStore, HealthStatus } from './monitorStore';
-import { processAlert } from './alertNotifier';
+import { processAlert, processPendingConfirmations } from './alertNotifier';
 
 function classifyHealth(status: string, latencyMs: number, ttftMs: number, outputTokens: number): HealthStatus {
   const thresholds = monitorConfigStore.getConfig().healthThresholds;
@@ -152,6 +152,10 @@ export function startScheduler() {
   scheduledTask = cron.schedule('* * * * *', () => {
     runCheck(false).catch((err) => {
       console.error('[Monitor] Scheduled check failed:', err);
+    });
+    // Process alert confirmation queue
+    processPendingConfirmations().catch((err) => {
+      console.error('[Monitor] Alert confirmation failed:', err);
     });
   });
 

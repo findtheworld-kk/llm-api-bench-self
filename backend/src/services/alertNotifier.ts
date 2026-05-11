@@ -1,7 +1,9 @@
 import crypto from 'crypto';
 import { getDb } from './database';
 import { monitorConfigStore, MonitorTarget } from './monitorConfigStore';
-import { HealthStatus } from './monitorStore';
+import { HealthStatus, monitorStore } from './monitorStore';
+import { providerStore } from './providerStore';
+import { testProviderConnection } from '../providers/adapter';
 
 type AlertType = 'down' | 'reminder' | 'recovery';
 
@@ -11,6 +13,19 @@ interface AlertMetrics {
   outputTokens: number;
   errorMessage?: string;
 }
+
+/** Pending confirmation: target detected down, awaiting re-check */
+interface PendingConfirmation {
+  target: MonitorTarget;
+  metrics: AlertMetrics;
+  type: AlertType;
+  scheduledAt: number; // when to re-check (ms timestamp)
+}
+
+const CONFIRM_DELAY_MS = 60 * 1000; // 1 minute
+
+// In-memory queue of targets awaiting confirmation
+const pendingConfirmations = new Map<string, PendingConfirmation>(); // key: "providerId::modelName"
 
 /** Get the previous health status for a target (skip the just-inserted ping) */
 function getPreviousStatus(providerId: string, modelName: string): HealthStatus | null {
@@ -160,6 +175,108 @@ async function sendFeishuAlert(
   }
 }
 
+/** Re-probe a single target to confirm its status */
+async function confirmProbe(target: MonitorTarget): Promise<{ status: HealthStatus; metrics: AlertMetrics } | null> {
+  const provider = providerStore.get(target.providerId);
+  if (!provider) return null;
+
+  const apiKey = providerStore.getDecryptedApiKey(target.providerId);
+  if (!apiKey) return null;
+
+  try {
+    const result = await testProviderConnection({
+      endpoint: provider.endpoint,
+      apiKey,
+      format: provider.format,
+      modelName: target.modelName,
+    });
+
+    const pingStatus = result.success ? 'ok' : 'error';
+    const thresholds = monitorConfigStore.getConfig().healthThresholds;
+    let healthStatus: HealthStatus = 'down';
+    if (pingStatus === 'ok') {
+      const tps = result.latencyMs > 0 ? (result.outputTokens / result.latencyMs) * 1000 : 0;
+      if (result.outputTokens > 0 && result.outputTokens < thresholds.minOutputTokens) healthStatus = 'down';
+      else if (tps > 0 && tps < thresholds.tpsVerySlowThreshold) healthStatus = 'very_slow';
+      else if (tps > 0 && tps < thresholds.tpsSlowThreshold) healthStatus = 'slow';
+      else if (result.ttftMs >= thresholds.ttftSlowMs) healthStatus = 'slow';
+      else healthStatus = 'healthy';
+    }
+
+    const metrics: AlertMetrics = {
+      latencyMs: result.latencyMs,
+      ttftMs: result.ttftMs,
+      outputTokens: result.outputTokens,
+      errorMessage: result.error || undefined,
+    };
+
+    // Record the confirmation ping
+    const isoNow = new Date().toISOString();
+    monitorStore.insertPing({
+      providerId: target.providerId,
+      providerName: target.providerName,
+      modelName: target.modelName,
+      status: pingStatus,
+      healthStatus,
+      latencyMs: metrics.latencyMs,
+      ttftMs: metrics.ttftMs,
+      outputTokens: metrics.outputTokens,
+      responseText: result.responseText,
+      errorMessage: metrics.errorMessage,
+      checkedAt: isoNow,
+    });
+
+    return { status: healthStatus, metrics };
+  } catch (err: any) {
+    return {
+      status: 'down' as HealthStatus,
+      metrics: { latencyMs: 0, ttftMs: 0, outputTokens: 0, errorMessage: err.message },
+    };
+  }
+}
+
+/** Process pending confirmations — called every minute by scheduler */
+export async function processPendingConfirmations(): Promise<void> {
+  if (pendingConfirmations.size === 0) return;
+  const now = Date.now();
+
+  const ready: PendingConfirmation[] = [];
+  for (const [key, pending] of pendingConfirmations) {
+    if (now >= pending.scheduledAt) {
+      ready.push(pending);
+      pendingConfirmations.delete(key);
+    }
+  }
+
+  for (const pending of ready) {
+    const confirmed = await confirmProbe(pending.target);
+    if (!confirmed) continue;
+
+    const isStillDown = confirmed.status === 'down' || confirmed.status === 'very_slow';
+    if (isStillDown) {
+      // Confirmed — send the alert
+      const config = monitorConfigStore.getConfig();
+      try {
+        await sendFeishuAlert(
+          config.alertWebhookUrl!,
+          config.alertWebhookSecret || undefined,
+          (config.alertLanguage as 'en' | 'zh') || 'en',
+          pending.type,
+          pending.target,
+          confirmed.metrics,
+        );
+        monitorConfigStore.updateLastAlertAt(pending.target.providerId, pending.target.modelName);
+      } catch (err) {
+        console.error('[Alert] Failed to send confirmed notification:', err);
+      }
+    } else {
+      console.log(
+        `[Alert] Confirmation check passed for ${pending.target.providerId}/${pending.target.modelName}, skipping alert`,
+      );
+    }
+  }
+}
+
 /** Main entry: check and send alert if needed */
 export async function processAlert(
   target: MonitorTarget,
@@ -176,17 +293,35 @@ export async function processAlert(
   const decision = shouldSendAlert(target, currentStatus, reminderMinutes);
   if (!decision) return;
 
-  try {
-    await sendFeishuAlert(
-      webhookUrl,
-      config.alertWebhookSecret || undefined,
-      config.alertLanguage || 'en',
-      decision.type,
-      target,
-      metrics,
-    );
-    monitorConfigStore.updateLastAlertAt(target.providerId, target.modelName);
-  } catch (err) {
-    console.error('[Alert] Failed to send notification:', err);
+  // Recovery alerts are sent immediately (no confirmation needed)
+  if (decision.type === 'recovery') {
+    try {
+      await sendFeishuAlert(
+        webhookUrl,
+        config.alertWebhookSecret || undefined,
+        config.alertLanguage || 'en',
+        decision.type,
+        target,
+        metrics,
+      );
+      monitorConfigStore.updateLastAlertAt(target.providerId, target.modelName);
+    } catch (err) {
+      console.error('[Alert] Failed to send notification:', err);
+    }
+    return;
   }
+
+  // Down/reminder: queue for confirmation in 1 minute
+  const key = `${target.providerId}::${target.modelName}`;
+  if (pendingConfirmations.has(key)) return; // already pending
+
+  pendingConfirmations.set(key, {
+    target,
+    metrics,
+    type: decision.type,
+    scheduledAt: Date.now() + CONFIRM_DELAY_MS,
+  });
+  console.log(
+    `[Alert] Queued confirmation check for ${target.providerId}/${target.modelName} in ${CONFIRM_DELAY_MS / 1000}s`,
+  );
 }

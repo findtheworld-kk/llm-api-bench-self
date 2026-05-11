@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [2.13.1] - 2026-05-11
+
+### Changed
+- Alert confirmation: down/reminder alerts now require a second probe after 1 minute to reduce false positives
+- Recovery alerts are still sent immediately without confirmation
+- Switch docker-compose.yml to use Docker Hub image (`idemerge/llm-api-bench`)
+- Remove unused variables flagged by code quality analysis
+
 ## [2.13.0] - 2026-05-11
 
 ### Added
