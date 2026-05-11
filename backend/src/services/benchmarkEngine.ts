@@ -10,7 +10,6 @@ import {
   ProviderResult,
   ProviderSummary,
   SSEEvent,
-  LEGACY_PROVIDER_IDS,
 } from '../types';
 import { store } from './store';
 import { testCapabilities } from './capabilityTester';

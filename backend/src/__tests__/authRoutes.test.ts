@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 
 // Test the change-password validation logic by simulating the route handler behavior.
 // The actual route handler is tightly coupled to Express, so we test the validation

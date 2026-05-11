@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { consumeOneTimeToken } from '../routes/auth';
 
 // The oneTimeTokens Map is internal to auth.ts. We need to exercise it through

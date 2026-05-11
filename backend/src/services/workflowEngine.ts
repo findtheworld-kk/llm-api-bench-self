@@ -1,15 +1,7 @@
-import { v4 as uuidv4 } from 'uuid';
-import {
-  BenchmarkWorkflow,
-  WorkflowTaskResult,
-  WorkflowSummary,
-  WorkflowProviderSummary,
-  TaskMetricPoint,
-  SSEEvent,
-} from '../types';
+import { BenchmarkWorkflow, WorkflowSummary, WorkflowProviderSummary, TaskMetricPoint, SSEEvent } from '../types';
 import { store } from './store';
 import { workflowStore } from './workflowStore';
-import { startBenchmark, subscribe, cancelRun } from './benchmarkEngine';
+import { startBenchmark, subscribe } from './benchmarkEngine';
 import { providerStore } from './providerStore';
 
 type WorkflowEventCallback = (event: { type: string; data: unknown }) => void;
