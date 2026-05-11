@@ -1,6 +1,6 @@
 services:
   app:
-    build: .
+    image: idemerge/llm-api-bench:${TAG:-latest}
     ports:
       - "${PORT:-3001}:3001"
     volumes:
