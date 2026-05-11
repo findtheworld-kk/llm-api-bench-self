@@ -22,6 +22,7 @@ export interface MonitorTarget {
   modelName: string;
   providerName: string;
   intervalMinutes?: number; // 0 = use global default
+  alertEnabled?: boolean;
 }
 
 export interface HealthThresholds {
@@ -34,6 +35,10 @@ export interface HealthThresholds {
 export interface MonitorGlobalConfig {
   defaultIntervalMinutes: number; // 5–360
   healthThresholds: HealthThresholds;
+  alertWebhookUrl?: string;
+  alertReminderMinutes?: number;
+  alertWebhookSecret?: string;
+  alertLanguage?: string;
 }
 
 export function useMonitor() {
@@ -125,16 +130,16 @@ export function useMonitor() {
   }, [fetchStatus, fetchHistory, fetchTargets, fetchConfig]);
 
   const saveTargets = useCallback(async (newTargets: MonitorTarget[]) => {
-    try {
-      await apiFetch('/api/monitor/targets', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newTargets),
-      });
-      setTargets(newTargets);
-    } catch {
-      /* ignore */
+    const res = await apiFetch('/api/monitor/targets', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(newTargets),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.error || `Save failed (${res.status})`);
     }
+    setTargets(newTargets);
   }, []);
 
   const triggerRun = useCallback(async () => {

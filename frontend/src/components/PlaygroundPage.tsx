@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { Select, Input, InputNumber, Switch, Collapse, Alert, Tooltip } from '../antdImports';
 import {
   SendOutlined,
@@ -72,6 +73,7 @@ function storeModel(v: string) {
 }
 
 export function PlaygroundPage() {
+  const { t } = useTranslation();
   const [searchParams, setSearchParams] = useSearchParams();
   const { providers, fetchProviders } = useProviders();
   const {
@@ -247,7 +249,7 @@ export function PlaygroundPage() {
     if (text.length > HEAVY_THRESHOLD) {
       fullPromptRef.current = text;
       setIsHeavyPrompt(true);
-      setPrompt(text.slice(0, 200) + `\n\n… [${text.length.toLocaleString()} chars total — full text loaded]`);
+      setPrompt(text.slice(0, 200) + '\n\n… ' + t('workflow.charsTotalLoaded', { count: text.length }));
     } else {
       fullPromptRef.current = null;
       setIsHeavyPrompt(false);
@@ -376,7 +378,7 @@ export function PlaygroundPage() {
               }`}
             >
               <HistoryOutlined />
-              History
+              {t('playground.history')}
               {historyItems.length > 0 && (
                 <span className="text-[10px] px-1 py-0 rounded bg-white/8 font-mono">{historyItems.length}</span>
               )}
@@ -386,10 +388,12 @@ export function PlaygroundPage() {
           {/* Provider & Model — stacks on mobile */}
           <div className="flex flex-col sm:flex-row gap-3">
             <div className="flex-1">
-              <label className="block text-[12px] text-text-tertiary mb-1.5 uppercase tracking-wider">Provider</label>
+              <label className="block text-[12px] text-text-tertiary mb-1.5 uppercase tracking-wider">
+                {t('playground.provider')}
+              </label>
               <Select
                 className="w-full"
-                placeholder="Select provider"
+                placeholder={t('playground.selectProvider')}
                 value={providers.length > 0 ? providerId : undefined}
                 onChange={(val) => {
                   setProviderId(val);
@@ -409,10 +413,12 @@ export function PlaygroundPage() {
               />
             </div>
             <div className="flex-1">
-              <label className="block text-[12px] text-text-tertiary mb-1.5 uppercase tracking-wider">Model</label>
+              <label className="block text-[12px] text-text-tertiary mb-1.5 uppercase tracking-wider">
+                {t('playground.model')}
+              </label>
               <Select
                 className="w-full"
-                placeholder={providerId ? 'Select model' : 'Select provider first'}
+                placeholder={providerId ? t('playground.selectModel') : t('playground.selectProviderFirst')}
                 disabled={!providerId}
                 value={activeModels.length > 0 ? modelName : undefined}
                 onChange={setModelName}
@@ -441,12 +447,12 @@ export function PlaygroundPage() {
             items={[
               {
                 key: 'system',
-                label: <span className="text-[12px] text-text-secondary">System Prompt</span>,
+                label: <span className="text-[12px] text-text-secondary">{t('playground.systemPrompt')}</span>,
                 children: (
                   <TextArea
                     value={systemPrompt}
                     onChange={(e) => setSystemPrompt(e.target.value)}
-                    placeholder="Optional system instructions..."
+                    placeholder={t('playground.systemPromptPlaceholder')}
                     autoSize={{ minRows: 2, maxRows: 6 }}
                     className="font-mono text-[13px]"
                   />
@@ -458,7 +464,7 @@ export function PlaygroundPage() {
           {/* Config Row — above prompt, set once use many */}
           <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
             <div className="flex items-center gap-2">
-              <label className="text-[12px] text-text-tertiary">Max Tokens</label>
+              <label className="text-[12px] text-text-tertiary">{t('playground.maxTokens')}</label>
               <InputNumber
                 changeOnBlur
                 min={1}
@@ -485,14 +491,14 @@ export function PlaygroundPage() {
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <Tooltip title="Streaming mode shows text as it arrives. Non-streaming waits for the full response.">
-                <label className="text-[12px] text-text-tertiary cursor-help">Streaming</label>
+              <Tooltip title={t('playground.streamingTooltip')}>
+                <label className="text-[12px] text-text-tertiary cursor-help">{t('playground.streaming')}</label>
               </Tooltip>
               <Switch size="small" checked={useStreaming} onChange={setUseStreaming} />
             </div>
             <div className="flex items-center gap-2">
-              <Tooltip title="Enable extended thinking (Anthropic/OpenAI o-series). Shows the model's reasoning process. Disables system prompt for Anthropic.">
-                <label className="text-[12px] text-text-tertiary cursor-help">Thinking</label>
+              <Tooltip title={t('playground.thinkingTooltip')}>
+                <label className="text-[12px] text-text-tertiary cursor-help">{t('playground.thinking')}</label>
               </Tooltip>
               <Switch size="small" checked={enableThinking} onChange={setEnableThinking} />
             </div>
@@ -500,7 +506,9 @@ export function PlaygroundPage() {
 
           {/* Prompt with inline image support, presets, and Run button */}
           <div>
-            <label className="block text-[12px] text-text-tertiary mb-1.5 uppercase tracking-wider">Prompt</label>
+            <label className="block text-[12px] text-text-tertiary mb-1.5 uppercase tracking-wider">
+              {t('playground.prompt')}
+            </label>
             <div
               className={`relative rounded-lg border transition-colors ${
                 isDragging ? 'border-accent-blue border-dashed bg-accent-blue/5' : 'border-border'
@@ -543,7 +551,7 @@ export function PlaygroundPage() {
               {/* Drag overlay */}
               {isDragging && (
                 <div className="absolute inset-0 flex items-center justify-center bg-accent-blue/5 rounded-lg z-10 pointer-events-none">
-                  <span className="text-[13px] text-accent-blue">Drop images here</span>
+                  <span className="text-[13px] text-accent-blue">{t('playground.dropImagesHere')}</span>
                 </div>
               )}
 
@@ -555,7 +563,7 @@ export function PlaygroundPage() {
                   setPrompt(e.target.value);
                   setActivePreset(undefined);
                 }}
-                placeholder="Enter your prompt... (paste or drop images here)"
+                placeholder={t('playground.promptPlaceholder')}
                 autoSize={{ minRows: 4, maxRows: 12 }}
                 className="font-mono text-[13px] !border-0 !shadow-none !bg-transparent"
                 readOnly={isHeavyPrompt}
@@ -568,7 +576,7 @@ export function PlaygroundPage() {
               />
               {isHeavyPrompt && (
                 <div className="mx-2 mb-1 px-2 py-1 rounded bg-surface-secondary border border-border flex items-center justify-between gap-2">
-                  <span className="text-[11px] text-text-tertiary">Large prompt loaded — editing disabled</span>
+                  <span className="text-[11px] text-text-tertiary">{t('playground.largePromptLoaded')}</span>
                   <button
                     onClick={() => {
                       fullPromptRef.current = null;
@@ -577,7 +585,7 @@ export function PlaygroundPage() {
                     }}
                     className="text-[11px] text-text-secondary hover:text-text-primary transition-colors"
                   >
-                    Clear
+                    {t('common.action.clear')}
                   </button>
                 </div>
               )}
@@ -585,8 +593,8 @@ export function PlaygroundPage() {
                 <div className="px-2 pb-1">
                   <span className="text-[10px] text-text-tertiary font-mono">
                     {isHeavyPrompt
-                      ? `~${(effectivePrompt.length / 4).toFixed(0)} tokens`
-                      : `${promptTokenCount} tokens`}
+                      ? `~${(effectivePrompt.length / 4).toFixed(0)} ${t('common.unit.tokens')}`
+                      : `${promptTokenCount} ${t('common.unit.tokens')}`}
                   </span>
                 </div>
               )}
@@ -601,13 +609,7 @@ export function PlaygroundPage() {
                   onChange={handleFileUpload}
                   className="hidden"
                 />
-                <Tooltip
-                  title={
-                    supportsVision
-                      ? 'Add images (or paste / drag-and-drop)'
-                      : 'This model does not support vision / image input'
-                  }
-                >
+                <Tooltip title={supportsVision ? t('playground.addImages') : t('playground.noVisionSupport')}>
                   <button
                     onClick={() => supportsVision && fileInputRef.current?.click()}
                     disabled={!supportsVision}
@@ -640,7 +642,7 @@ export function PlaygroundPage() {
                           : 'border-border text-text-tertiary hover:text-text-secondary hover:border-accent-blue/40'
                       }`}
                     >
-                      {preset.label}
+                      {preset.labelKey ? t(preset.labelKey) : preset.label}
                     </button>
                   ))}
                   {!showLongContext ? (
@@ -648,7 +650,7 @@ export function PlaygroundPage() {
                       onClick={() => setShowLongContext(true)}
                       className="text-[10px] px-2 py-0.5 rounded border border-border text-text-tertiary hover:text-text-secondary transition-colors whitespace-nowrap"
                     >
-                      Long Context...
+                      {t('playground.longContext')}
                     </button>
                   ) : (
                     SHAREGPT_PRESETS.map((preset) => (
@@ -674,7 +676,7 @@ export function PlaygroundPage() {
                             : 'border-border text-text-tertiary hover:text-text-secondary hover:border-accent-blue/40'
                         }`}
                       >
-                        {preset.label}
+                        {preset.labelKey ? t(preset.labelKey) : preset.label}
                       </button>
                     ))
                   )}
@@ -682,7 +684,7 @@ export function PlaygroundPage() {
 
                 {/* Output Scope (multi-doc presets only) */}
                 {isMultiDoc && (
-                  <Tooltip title="Controls how many documents the model should read and summarize. Fewer docs = shorter output (~500 tokens for 3 docs). Use this to limit output length while keeping the full prompt as input.">
+                  <Tooltip title={t('playground.outputScopeTooltip')}>
                     <Select
                       size="small"
                       value={outputScope}
@@ -705,10 +707,10 @@ export function PlaygroundPage() {
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-accent-rose/15 text-accent-rose hover:bg-accent-rose/25 transition-colors text-[12px] font-medium whitespace-nowrap"
                   >
                     <StopOutlined />
-                    Stop
+                    {t('playground.stop')}
                   </button>
                 ) : (
-                  <Tooltip title={canRun ? 'Cmd+Enter' : 'Select provider, model, and enter a prompt'}>
+                  <Tooltip title={canRun ? t('playground.cmdEnter') : t('playground.selectPromptModel')}>
                     <button
                       onClick={handleRun}
                       disabled={!canRun}
@@ -719,7 +721,7 @@ export function PlaygroundPage() {
                       }`}
                     >
                       <SendOutlined />
-                      Run
+                      {t('playground.run')}
                     </button>
                   </Tooltip>
                 )}
@@ -741,7 +743,9 @@ export function PlaygroundPage() {
               <div>
                 <div className="flex items-center gap-2 mb-2">
                   <BulbOutlined className="text-accent-violet text-[13px]" />
-                  <span className="text-[12px] text-text-tertiary uppercase tracking-wider">Reasoning</span>
+                  <span className="text-[12px] text-text-tertiary uppercase tracking-wider">
+                    {t('playground.reasoning')}
+                  </span>
                 </div>
                 <div className="rounded border border-accent-violet/20 bg-accent-violet/5 p-4 overflow-auto max-h-[300px]">
                   <pre className="whitespace-pre-wrap text-[13px] leading-relaxed font-mono text-text-secondary m-0">
@@ -756,7 +760,9 @@ export function PlaygroundPage() {
             <div>
               <div className="flex items-center gap-2 mb-2">
                 <CodeOutlined className="text-accent-teal text-[13px]" />
-                <span className="text-[12px] text-text-tertiary uppercase tracking-wider">Response</span>
+                <span className="text-[12px] text-text-tertiary uppercase tracking-wider">
+                  {t('playground.response')}
+                </span>
                 {selectedProvider && (
                   <span
                     className="text-[11px] px-1.5 py-0.5 rounded font-mono ml-auto"
@@ -773,7 +779,7 @@ export function PlaygroundPage() {
                   <button
                     onClick={handleCopyResponse}
                     className="text-[12px] text-text-tertiary hover:text-text-primary transition-colors ml-1"
-                    title="Copy response"
+                    title={t('playground.copyResponse')}
                   >
                     {copied ? <CheckOutlined className="text-accent-teal" /> : <CopyOutlined />}
                   </button>
@@ -787,11 +793,13 @@ export function PlaygroundPage() {
                   </pre>
                 ) : loading ? (
                   <div className="flex items-center gap-2 text-text-tertiary text-[13px]">
-                    <span className="animate-pulse">{streaming ? 'Streaming...' : 'Waiting for response...'}</span>
+                    <span className="animate-pulse">
+                      {streaming ? t('playground.streamingEllipsis') : t('playground.waitingForResponse')}
+                    </span>
                   </div>
                 ) : (
                   <span className="text-text-tertiary text-[13px] italic">
-                    {metrics ? 'No response text (model may use reasoning-only output)' : 'No response yet'}
+                    {metrics ? t('playground.noResponseText') : t('playground.noResponseYet')}
                   </span>
                 )}
               </div>
@@ -804,7 +812,7 @@ export function PlaygroundPage() {
                 items={[
                   {
                     key: 'debug',
-                    label: <span className="text-[12px] text-text-secondary">Debug Details</span>,
+                    label: <span className="text-[12px] text-text-secondary">{t('playground.debugDetails')}</span>,
                     children: (
                       <pre className="whitespace-pre-wrap text-[11px] font-mono text-text-secondary bg-[#0a0a0a] p-3 rounded overflow-auto max-h-[300px] m-0">
                         {JSON.stringify(
@@ -855,6 +863,7 @@ export function PlaygroundPage() {
 }
 
 function MetricsRow({ metrics, loading }: { metrics: PlaygroundMetrics | null; loading: boolean }) {
+  const { t } = useTranslation();
   const colorMap: Record<string, string> = {
     'text-accent-blue': '#4096ff',
     'text-accent-amber': '#ff9830',
@@ -866,40 +875,51 @@ function MetricsRow({ metrics, loading }: { metrics: PlaygroundMetrics | null; l
 
   const cards = [
     {
-      label: 'Response Time',
-      tooltip: 'Total time from request sent to response fully received',
+      label: t('playground.responseTime'),
+      tooltip: t('playground.responseTimeTooltip'),
       value: metrics?.responseTime != null ? `${metrics.responseTime.toLocaleString()} ms` : '--',
       icon: <ClockCircleOutlined />,
       cls: 'text-accent-blue',
     },
     {
-      label: 'First Token',
-      tooltip: 'Time To First Token (TTFT) — how long until the first token arrives',
+      label: t('playground.firstToken'),
+      tooltip: t('playground.firstTokenTooltip'),
       value:
         metrics?.firstTokenLatency != null && metrics.firstTokenLatency > 0
           ? `${metrics.firstTokenLatency.toLocaleString()} ms`
           : metrics
-            ? 'N/A'
+            ? t('common.status.na')
             : '--',
       icon: <ThunderboltOutlined />,
       cls: 'text-accent-amber',
     },
     {
-      label: 'TPS',
-      tooltip: 'Tokens Per Second — output speed of this request',
+      label: t('playground.tps'),
+      tooltip: t('playground.tpsTooltip'),
       value: metrics?.tokensPerSecond != null ? `${metrics.tokensPerSecond}` : '--',
       icon: <DashboardOutlined />,
       cls: metrics?.tokensPerSecond === 0 && metrics?.outputTokens === 0 ? 'text-accent-rose' : 'text-accent-teal',
       warn: metrics?.tokensPerSecond === 0 && metrics?.outputTokens === 0,
     },
     {
-      label: 'Tokens',
-      tooltip: 'Input and output token counts for this request',
-      value: metrics?.inputTokens != null ? `${metrics.inputTokens} in / ${metrics.outputTokens ?? 0} out` : '--',
+      label: t('playground.tokensLabel'),
+      tooltip: t('playground.tokensTooltip'),
+      value:
+        metrics?.inputTokens != null
+          ? `${metrics.inputTokens} ${t('playground.tokenIn')} / ${metrics.outputTokens ?? 0} ${t('playground.tokenOut')}`
+          : '--',
       icon: metrics?.outputTokens === 0 ? <WarningOutlined /> : null,
       cls: metrics?.outputTokens === 0 ? 'text-accent-rose' : 'text-accent-violet',
       warn: metrics?.outputTokens === 0,
-      sublabel: metrics?.reasoningTokens ? `(${metrics.reasoningTokens} reasoning)` : undefined,
+      sublabel: (() => {
+        const parts: string[] = [];
+        if (metrics?.reasoningTokens)
+          parts.push(`${metrics.reasoningTokens} ${t('playground.reasoningLabel').toLowerCase()}`);
+        if (metrics?.cacheCreationTokens)
+          parts.push(`${metrics.cacheCreationTokens} ${t('playground.cacheWriteLabel')}`);
+        if (metrics?.cacheReadTokens) parts.push(`${metrics.cacheReadTokens} ${t('playground.cacheReadLabel')}`);
+        return parts.length > 0 ? `(${parts.join(', ')})` : undefined;
+      })(),
     },
   ];
 
@@ -930,7 +950,7 @@ function MetricsRow({ metrics, loading }: { metrics: PlaygroundMetrics | null; l
             {card.warn && (
               <div className="text-[11px] text-accent-rose mt-1 flex items-center gap-1">
                 <WarningOutlined className="text-[11px]" />
-                No token data from API
+                {t('common.noTokenData')}
               </div>
             )}
           </div>

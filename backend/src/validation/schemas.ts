@@ -137,6 +137,10 @@ export const MonitorConfigSchema = z.object({
     ttftSlowMs: z.number().min(0),
     minOutputTokens: z.number().int().min(0),
   }),
+  alertWebhookUrl: z.string().optional(),
+  alertReminderMinutes: z.number().int().min(5).max(1440).optional(),
+  alertWebhookSecret: z.string().optional(),
+  alertLanguage: z.enum(['en', 'zh']).optional(),
 });
 
 export const MonitorTargetSchema = z.object({
@@ -144,6 +148,7 @@ export const MonitorTargetSchema = z.object({
   modelName: modelIdRule,
   providerName: providerNameRule,
   intervalMinutes: z.number().int().min(0),
+  alertEnabled: z.boolean().optional(),
 });
 
 export const MonitorTargetsArraySchema = z.array(MonitorTargetSchema).min(1, 'At least one target is required');

@@ -11,7 +11,9 @@ import {
   MinusCircleFilled,
   LoadingOutlined,
 } from '@ant-design/icons';
+import { useTranslation } from 'react-i18next';
 import { BenchmarkWorkflow, getProviderColor } from '../types';
+import { formatRelativeTime } from '../utils/timeFormat';
 
 interface HistoryPanelProps {
   workflows: BenchmarkWorkflow[];
@@ -21,21 +23,6 @@ interface HistoryPanelProps {
   onRefresh?: () => void;
   selectedId?: string;
   loading?: boolean;
-}
-
-function formatRelativeDate(dateStr: string): string {
-  const d = new Date(dateStr);
-  const now = new Date();
-  const diffMs = now.getTime() - d.getTime();
-  const diffMin = Math.floor(diffMs / 60000);
-  if (diffMin < 1) return 'just now';
-  if (diffMin < 60) return `${diffMin}m ago`;
-  const diffH = Math.floor(diffMin / 60);
-  if (diffH < 24) return `${diffH}h ago`;
-  const diffD = Math.floor(diffH / 24);
-  if (diffD < 7) return `${diffD}d ago`;
-  const pad = (n: number) => n.toString().padStart(2, '0');
-  return `${pad(d.getMonth() + 1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
 function formatDuration(ms: number): string {
@@ -87,6 +74,7 @@ function StatusIcon({ status }: { status: string }) {
 
 /** Compact config chip: "5c × 10i" */
 function ConfigChips({ record }: { record: BenchmarkWorkflow }) {
+  const { t } = useTranslation();
   const tasks = record.tasks || [];
   if (tasks.length === 0) return null;
 
@@ -106,13 +94,20 @@ function ConfigChips({ record }: { record: BenchmarkWorkflow }) {
 
   return (
     <span className="text-[10px] text-text-tertiary font-mono">
-      {tasks.length > 1 && <span className="text-accent-violet/70">{tasks.length} tasks · </span>}
+      {tasks.length > 1 && (
+        <span className="text-accent-violet/70">
+          {tasks.length} {t('common.unit.tasks')} ·{' '}
+        </span>
+      )}
       {concLabel} × {iterLabel}
       {tokLabel && <span> × {tokLabel}</span>}
       {cacheRates.length > 0 && (
-        <span> · cache {((cacheRates.reduce((a, b) => a + b, 0) / cacheRates.length) * 100).toFixed(0)}%</span>
+        <span>
+          {' '}
+          · {t('history.cacheLabel')} {((cacheRates.reduce((a, b) => a + b, 0) / cacheRates.length) * 100).toFixed(0)}%
+        </span>
       )}
-      {streamings.length === 1 && streamings[0] && <span> · stream</span>}
+      {streamings.length === 1 && streamings[0] && <span> · {t('history.streamLabel')}</span>}
     </span>
   );
 }
@@ -128,6 +123,7 @@ export function HistoryPanel({
 }: HistoryPanelProps) {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
+  const { t } = useTranslation();
 
   const getProviderLabel = (record: BenchmarkWorkflow, providerKey: string): string => {
     if (record.providerLabels?.[providerKey]) return record.providerLabels[providerKey];
@@ -150,7 +146,7 @@ export function HistoryPanel({
   if (loading || !workflows) {
     return (
       <div className="glass-card p-10 flex items-center justify-center min-h-[300px]">
-        <div className="text-text-tertiary text-sm">Loading...</div>
+        <div className="text-text-tertiary text-sm">{t('history.loading')}</div>
       </div>
     );
   }
@@ -162,8 +158,8 @@ export function HistoryPanel({
         animate={{ opacity: 1 }}
         className="glass-card p-10 flex flex-col items-center justify-center min-h-[300px] text-center"
       >
-        <Empty description="No Workflows Yet" />
-        <p className="text-text-secondary text-sm mt-2">Run your first workflow to see results here.</p>
+        <Empty description={t('history.noWorkflows')} />
+        <p className="text-text-secondary text-sm mt-2">{t('history.noWorkflowsDesc')}</p>
       </motion.div>
     );
   }
@@ -177,7 +173,7 @@ export function HistoryPanel({
       {/* Toolbar */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <span className="text-sm text-text-secondary font-mono">
-          {sorted.length} workflow{sorted.length !== 1 ? 's' : ''}
+          {t('history.workflowCount', { count: sorted.length })}
         </span>
         {onRefresh && (
           <button
@@ -185,7 +181,7 @@ export function HistoryPanel({
             className="flex items-center gap-1.5 px-2.5 py-1 text-xs text-text-secondary hover:text-text-primary border border-border hover:border-accent-blue/30 rounded transition-all"
           >
             <ReloadOutlined style={{ fontSize: 12 }} />
-            Refresh
+            {t('history.refresh')}
           </button>
         )}
       </div>
@@ -200,7 +196,7 @@ export function HistoryPanel({
             render: (_: unknown, record: BenchmarkWorkflow) => <StatusIcon status={record.status} />,
           },
           {
-            title: 'Workflow',
+            title: t('history.workflow'),
             key: 'main',
             render: (_: unknown, record: BenchmarkWorkflow) => {
               const successRate = record.summary
@@ -215,7 +211,7 @@ export function HistoryPanel({
                       {record.name || record.id.slice(0, 8)}
                     </span>
                     <span className="text-[10px] text-text-tertiary font-mono flex-shrink-0">
-                      {formatRelativeDate(record.createdAt)}
+                      {formatRelativeTime(record.createdAt)}
                     </span>
                   </div>
                   <div className="flex items-center gap-2 mt-1">
@@ -224,7 +220,7 @@ export function HistoryPanel({
                       <span
                         className={`text-[10px] font-mono ${successRate >= 0.95 ? 'text-accent-teal' : successRate >= 0.8 ? 'text-accent-amber' : 'text-accent-rose'}`}
                       >
-                        {(successRate * 100).toFixed(0)}% ok
+                        {(successRate * 100).toFixed(0)}% {t('common.status.ok')}
                       </span>
                     )}
                   </div>
@@ -233,7 +229,7 @@ export function HistoryPanel({
             },
           },
           {
-            title: 'Models',
+            title: t('history.models'),
             key: 'models',
             width: 240,
             render: (_: unknown, record: BenchmarkWorkflow) => {
@@ -281,7 +277,7 @@ export function HistoryPanel({
             },
           },
           {
-            title: 'Duration',
+            title: t('history.duration'),
             key: 'duration',
             width: 80,
             align: 'right' as const,
@@ -296,7 +292,7 @@ export function HistoryPanel({
             },
           },
           {
-            title: 'Tokens',
+            title: t('history.tokens'),
             key: 'tokens',
             width: 72,
             align: 'right' as const,
@@ -316,7 +312,7 @@ export function HistoryPanel({
             align: 'center' as const,
             render: (_: unknown, record: BenchmarkWorkflow) => (
               <div className="flex items-center justify-center gap-2" onClick={(e) => e.stopPropagation()}>
-                <Tooltip title="Duplicate">
+                <Tooltip title={t('common.action.duplicate')}>
                   <CopyOutlined
                     className={`text-[12px] ${duplicatingId === record.id ? 'text-text-tertiary' : 'text-accent-blue/50 hover:text-accent-blue'} cursor-pointer transition-colors`}
                     onClick={() => handleDuplicate(record.id)}
@@ -324,15 +320,15 @@ export function HistoryPanel({
                 </Tooltip>
                 {record.status !== 'running' && (
                   <Popconfirm
-                    title="Delete this workflow?"
-                    description="This action cannot be undone."
+                    title={t('history.deleteConfirmTitle')}
+                    description={t('history.deleteConfirmDesc')}
                     onConfirm={() => handleDelete(record.id)}
-                    okText="Delete"
-                    cancelText="Cancel"
+                    okText={t('common.action.delete')}
+                    cancelText={t('common.action.cancel')}
                     okButtonProps={{ danger: true, size: 'small' }}
                     cancelButtonProps={{ size: 'small' }}
                   >
-                    <Tooltip title="Delete">
+                    <Tooltip title={t('common.action.delete')}>
                       <DeleteOutlined
                         className={`text-[12px] ${deletingId === record.id ? 'text-text-tertiary' : 'text-accent-rose/40 hover:text-accent-rose'} cursor-pointer transition-colors`}
                       />

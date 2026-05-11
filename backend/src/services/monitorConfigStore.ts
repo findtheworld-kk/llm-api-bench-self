@@ -5,6 +5,8 @@ export interface MonitorTarget {
   modelName: string;
   providerName: string;
   intervalMinutes: number; // 0 = use global default
+  alertEnabled?: boolean;
+  lastAlertAt?: string | null;
 }
 
 export interface HealthThresholds {
@@ -17,6 +19,10 @@ export interface HealthThresholds {
 export interface MonitorGlobalConfig {
   defaultIntervalMinutes: number; // 5–360
   healthThresholds: HealthThresholds;
+  alertWebhookUrl?: string;
+  alertReminderMinutes?: number; // default 360 (6 hours)
+  alertWebhookSecret?: string;
+  alertLanguage?: 'en' | 'zh';
 }
 
 const DEFAULT_CONFIG: MonitorGlobalConfig = {
@@ -27,6 +33,10 @@ const DEFAULT_CONFIG: MonitorGlobalConfig = {
     ttftSlowMs: 1000,
     minOutputTokens: 1,
   },
+  alertWebhookUrl: '',
+  alertReminderMinutes: 360,
+  alertWebhookSecret: '',
+  alertLanguage: 'en',
 };
 
 class MonitorConfigStore {
@@ -48,11 +58,19 @@ class MonitorConfigStore {
       )
     `);
 
-    // Migration: add interval_minutes column if missing using PRAGMA check
+    // Migrations using PRAGMA check
     const cols = (this.db.pragma('table_info(monitor_targets)') as Array<{ name: string }>).map((c) => c.name);
     if (!cols.includes('interval_minutes')) {
       this.db.exec('ALTER TABLE monitor_targets ADD COLUMN interval_minutes INTEGER NOT NULL DEFAULT 0');
       console.log('Migrated: added interval_minutes column to monitor_targets');
+    }
+    if (!cols.includes('alert_enabled')) {
+      this.db.exec('ALTER TABLE monitor_targets ADD COLUMN alert_enabled INTEGER NOT NULL DEFAULT 1');
+      console.log('Migrated: added alert_enabled column to monitor_targets');
+    }
+    if (!cols.includes('last_alert_at')) {
+      this.db.exec('ALTER TABLE monitor_targets ADD COLUMN last_alert_at TEXT DEFAULT NULL');
+      console.log('Migrated: added last_alert_at column to monitor_targets');
     }
 
     this.db.exec(`
@@ -90,6 +108,10 @@ class MonitorConfigStore {
       JSON.stringify({
         defaultIntervalMinutes: clamped,
         healthThresholds: { ...DEFAULT_CONFIG.healthThresholds, ...(config.healthThresholds || {}) },
+        alertWebhookUrl: config.alertWebhookUrl ?? '',
+        alertReminderMinutes: config.alertReminderMinutes ?? DEFAULT_CONFIG.alertReminderMinutes,
+        alertWebhookSecret: config.alertWebhookSecret ?? '',
+        alertLanguage: config.alertLanguage ?? 'en',
       }),
     );
   }
@@ -99,19 +121,23 @@ class MonitorConfigStore {
   getTargets(): MonitorTarget[] {
     const rows = this.db
       .prepare(
-        'SELECT provider_id, model_name, provider_name, interval_minutes FROM monitor_targets WHERE enabled = 1 ORDER BY provider_name, model_name',
+        'SELECT provider_id, model_name, provider_name, interval_minutes, alert_enabled, last_alert_at FROM monitor_targets WHERE enabled = 1 ORDER BY provider_name, model_name',
       )
       .all() as Array<{
       provider_id: string;
       model_name: string;
       provider_name: string;
       interval_minutes: number;
+      alert_enabled: number;
+      last_alert_at: string | null;
     }>;
     return rows.map((r) => ({
       providerId: r.provider_id,
       modelName: r.model_name,
       providerName: r.provider_name,
       intervalMinutes: r.interval_minutes || 0,
+      alertEnabled: !!r.alert_enabled,
+      lastAlertAt: r.last_alert_at,
     }));
   }
 
@@ -119,10 +145,10 @@ class MonitorConfigStore {
     const tx = this.db.transaction(() => {
       this.db.prepare('DELETE FROM monitor_targets').run();
       const stmt = this.db.prepare(
-        'INSERT INTO monitor_targets (provider_id, model_name, provider_name, interval_minutes, enabled) VALUES (?, ?, ?, ?, 1)',
+        'INSERT INTO monitor_targets (provider_id, model_name, provider_name, interval_minutes, enabled, alert_enabled) VALUES (?, ?, ?, ?, 1, ?)',
       );
       for (const t of targets) {
-        stmt.run(t.providerId, t.modelName, t.providerName, t.intervalMinutes || 0);
+        stmt.run(t.providerId, t.modelName, t.providerName, t.intervalMinutes || 0, t.alertEnabled !== false ? 1 : 0);
       }
     });
     tx();
@@ -131,9 +157,15 @@ class MonitorConfigStore {
   addTarget(target: MonitorTarget): void {
     this.db
       .prepare(
-        'INSERT OR REPLACE INTO monitor_targets (provider_id, model_name, provider_name, interval_minutes, enabled) VALUES (?, ?, ?, ?, 1)',
+        'INSERT OR REPLACE INTO monitor_targets (provider_id, model_name, provider_name, interval_minutes, enabled, alert_enabled) VALUES (?, ?, ?, ?, 1, ?)',
       )
-      .run(target.providerId, target.modelName, target.providerName, target.intervalMinutes || 0);
+      .run(
+        target.providerId,
+        target.modelName,
+        target.providerName,
+        target.intervalMinutes || 0,
+        target.alertEnabled !== false ? 1 : 0,
+      );
   }
 
   removeTarget(providerId: string, modelName: string): void {
@@ -150,6 +182,14 @@ class MonitorConfigStore {
   /** Remove all targets for a given provider */
   removeTargetsByProvider(providerId: string): void {
     this.db.prepare('DELETE FROM monitor_targets WHERE provider_id = ?').run(providerId);
+  }
+
+  /** Update last alert timestamp for a target */
+  updateLastAlertAt(providerId: string, modelName: string, timestamp?: string): void {
+    const ts = timestamp || new Date().toISOString();
+    this.db
+      .prepare('UPDATE monitor_targets SET last_alert_at = ? WHERE provider_id = ? AND model_name = ?')
+      .run(ts, providerId, modelName);
   }
 }
 

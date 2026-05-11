@@ -499,6 +499,7 @@ async function streamOpenAI(
       inputTokens: usageData?.prompt_tokens || 0,
       outputTokens: usageData?.completion_tokens || 0,
       reasoningTokens: usageData?.completion_tokens_details?.reasoning_tokens || 0,
+      cacheReadTokens: usageData?.prompt_tokens_details?.cached_tokens || 0,
     },
     resultOut,
   );
@@ -565,6 +566,8 @@ async function streamAnthropic(
   let reasoningText = '';
   let inputTokens = 0;
   let outputTokens = 0;
+  let cacheCreationTokens = 0;
+  let cacheReadTokens = 0;
 
   try {
     while (true) {
@@ -585,6 +588,8 @@ async function streamAnthropic(
 
           if (parsed.type === 'message_start') {
             inputTokens = parsed.message?.usage?.input_tokens || 0;
+            cacheCreationTokens = parsed.message?.usage?.cache_creation_input_tokens || 0;
+            cacheReadTokens = parsed.message?.usage?.cache_read_input_tokens || 0;
           }
           if (parsed.type === 'content_block_delta') {
             const deltaType = parsed.delta?.type;
@@ -633,6 +638,8 @@ async function streamAnthropic(
       inputTokens,
       outputTokens,
       reasoningTokens: reasoningText.length > 0 ? Math.ceil(reasoningText.length / 4) : 0,
+      cacheCreationTokens,
+      cacheReadTokens,
     },
     resultOut,
   );
@@ -813,16 +820,22 @@ function emitDone(
   modelName: string,
   fullText: string,
   reasoningText: string,
-  tokens: { inputTokens: number; outputTokens: number; reasoningTokens: number },
+  tokens: {
+    inputTokens: number;
+    outputTokens: number;
+    reasoningTokens: number;
+    cacheCreationTokens?: number;
+    cacheReadTokens?: number;
+  },
   resultOut?: StreamResult,
 ) {
   if (isAborted()) return;
   const responseTime = Date.now() - startTime;
   const firstTokenLatency = firstTokenTime ? firstTokenTime - startTime : 0;
-  const { inputTokens, outputTokens, reasoningTokens } = tokens;
+  const { inputTokens, outputTokens, reasoningTokens, cacheCreationTokens, cacheReadTokens } = tokens;
   const tokensPerSecond = outputTokens > 0 ? Math.round((outputTokens / responseTime) * 1000) : 0;
 
-  const doneEvent = {
+  const doneEvent: Record<string, any> = {
     type: 'done',
     text: fullText,
     reasoningText,
@@ -835,6 +848,8 @@ function emitDone(
     tokensPerSecond,
     model: modelName,
   };
+  if (cacheCreationTokens) doneEvent.cacheCreationTokens = cacheCreationTokens;
+  if (cacheReadTokens) doneEvent.cacheReadTokens = cacheReadTokens;
   sendEvent(doneEvent);
 
   if (resultOut) {

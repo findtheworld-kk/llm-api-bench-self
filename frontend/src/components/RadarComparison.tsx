@@ -1,4 +1,5 @@
 import { motion } from 'framer-motion';
+import { useTranslation } from 'react-i18next';
 import { RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, ResponsiveContainer, Tooltip } from 'recharts';
 import { ProviderResult, getProviderColor, getProviderDisplayName } from '../types';
 
@@ -7,10 +8,12 @@ interface RadarComparisonProps {
 }
 
 export function RadarComparison({ results }: RadarComparisonProps) {
+  const { t } = useTranslation();
   const providers = Object.keys(results);
   if (providers.length === 0) return null;
 
-  const metrics = ['Speed', 'Throughput', 'Latency', 'Cost Eff.', 'Reliability'];
+  const metricKeys = ['speed', 'throughput', 'latency', 'costEff', 'reliability'] as const;
+  const metrics = metricKeys.map((key) => t(`radar.${key}`));
   const maxValues = {
     speed: Math.max(...providers.map((p) => results[p]?.summary?.avgResponseTime || 1)),
     throughput: Math.max(...providers.map((p) => results[p]?.summary?.avgTokensPerSecond || 1)),
@@ -18,7 +21,7 @@ export function RadarComparison({ results }: RadarComparisonProps) {
     cost: Math.max(...providers.map((p) => results[p]?.summary?.estimatedCost || 0.0001)),
   };
 
-  const data = metrics.map((metric) => {
+  const data = metrics.map((metric, i) => {
     const point: Record<string, string | number> = { metric };
     providers.forEach((p) => {
       const summary = results[p]?.summary;
@@ -27,20 +30,20 @@ export function RadarComparison({ results }: RadarComparisonProps) {
         return;
       }
 
-      switch (metric) {
-        case 'Speed':
+      switch (metricKeys[i]) {
+        case 'speed':
           point[p] = Math.round((1 - summary.avgResponseTime / maxValues.speed) * 100);
           break;
-        case 'Throughput':
+        case 'throughput':
           point[p] = Math.round((summary.avgTokensPerSecond / maxValues.throughput) * 100);
           break;
-        case 'Latency':
+        case 'latency':
           point[p] = Math.round((1 - summary.avgFirstTokenLatency / maxValues.latency) * 100);
           break;
-        case 'Cost Eff.':
+        case 'costEff':
           point[p] = Math.round((1 - summary.estimatedCost / maxValues.cost) * 100);
           break;
-        case 'Reliability':
+        case 'reliability':
           point[p] = Math.round(summary.successRate * 100);
           break;
       }
@@ -50,7 +53,7 @@ export function RadarComparison({ results }: RadarComparisonProps) {
 
   return (
     <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="glass-card p-7">
-      <h3 className="data-label mb-5">Provider Comparison</h3>
+      <h3 className="data-label mb-5">{t('radar.comparison')}</h3>
       <div className="h-80">
         <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
           <RadarChart data={data}>

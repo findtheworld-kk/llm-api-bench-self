@@ -1,12 +1,16 @@
 import { useEffect, useState, useMemo, useRef, useCallback } from 'react';
-import { Button, Tooltip, Checkbox, Select, Tag, InputNumber, Modal } from '../antdImports';
+import { Button, Tooltip, Checkbox, Select, Tag, InputNumber, Modal, Input } from '../antdImports';
+import message from 'antd/es/message';
 import {
   ReloadOutlined,
   ClockCircleOutlined,
   SettingOutlined,
   WarningOutlined,
   LineChartOutlined,
+  BellOutlined,
+  BellFilled,
 } from '@ant-design/icons';
+import { useTranslation } from 'react-i18next';
 import { useMonitor, PingResult, MonitorTarget, HealthThresholds } from '../hooks/useMonitor';
 import { useProviders } from '../hooks/useProviders';
 import {
@@ -19,27 +23,6 @@ import {
   AreaChart,
   ReferenceLine,
 } from 'recharts';
-
-const INTERVAL_OPTIONS = [
-  { value: 0, label: 'Default' },
-  { value: 5, label: '5 min' },
-  { value: 10, label: '10 min' },
-  { value: 15, label: '15 min' },
-  { value: 30, label: '30 min' },
-  { value: 60, label: '1 hour' },
-  { value: 120, label: '2 hours' },
-  { value: 360, label: '6 hours' },
-];
-
-const DEFAULT_INTERVAL_OPTIONS = [
-  { value: 5, label: '5 min' },
-  { value: 10, label: '10 min' },
-  { value: 15, label: '15 min' },
-  { value: 30, label: '30 min' },
-  { value: 60, label: '1 hour' },
-  { value: 120, label: '2 hours' },
-  { value: 360, label: '6 hours' },
-];
 
 function formatTime(iso: string): string {
   const d = new Date(iso);
@@ -60,11 +43,11 @@ function getStatusDotColor(cls: HealthStatus): string {
   return 'bg-emerald-500';
 }
 
-function getStatusLabel(cls: HealthStatus): string {
-  if (cls === 'down') return 'Down';
-  if (cls === 'very_slow') return 'Very Slow';
-  if (cls === 'slow') return 'Slow';
-  return 'Healthy';
+function getStatusLabel(cls: HealthStatus, t: any): string {
+  if (cls === 'down') return t('monitor.down');
+  if (cls === 'very_slow') return t('monitor.verySlow');
+  if (cls === 'slow') return t('monitor.slow');
+  return t('monitor.healthy');
 }
 
 function getStatusTextColor(cls: HealthStatus): string {
@@ -73,6 +56,13 @@ function getStatusTextColor(cls: HealthStatus): string {
   if (cls === 'slow') return 'text-amber-400';
   return 'text-emerald-400';
 }
+
+const STATUS_ICON_COLORS: Record<HealthStatus, string> = {
+  down: '#f87171',
+  very_slow: '#fb923c',
+  slow: '#fbbf24',
+  healthy: '#34d399',
+};
 
 const TIME_RANGES = [
   { label: '1h', hours: 1 },
@@ -100,9 +90,10 @@ interface TrendChartsProps {
   providerId: string;
   modelName: string;
   thresholds: HealthThresholds;
+  t: any;
 }
 
-function TrendCharts({ history, providerId, modelName, thresholds }: TrendChartsProps) {
+function TrendCharts({ history, providerId, modelName, thresholds, t }: TrendChartsProps) {
   const [range, setRange] = useState<number>(24);
 
   const data = useMemo(() => {
@@ -123,7 +114,7 @@ function TrendCharts({ history, providerId, modelName, thresholds }: TrendCharts
   }, [history, providerId, modelName, range]);
 
   if (data.length === 0) {
-    return <div className="text-[11px] text-text-tertiary py-2">No data for selected time range.</div>;
+    return <div className="text-[11px] text-text-tertiary py-2">{t('common.noData')}</div>;
   }
 
   const charts: { key: string; label: string; dataKey: string; color: string; unit: string; refLine?: number }[] = [
@@ -143,7 +134,7 @@ function TrendCharts({ history, providerId, modelName, thresholds }: TrendCharts
       unit: 'tok/s',
       refLine: thresholds.tpsSlowThreshold,
     },
-    { key: 'latency', label: 'Latency', dataKey: 'latency', color: CHART_COLORS.latency, unit: 's' },
+    { key: 'latency', label: t('monitor.latency'), dataKey: 'latency', color: CHART_COLORS.latency, unit: 's' },
   ];
 
   return (
@@ -228,10 +219,12 @@ function HistoryBar({
   history,
   providerId,
   modelName,
+  t,
 }: {
   history: PingResult[];
   providerId: string;
   modelName: string;
+  t: any;
 }) {
   const pings = history.filter((p) => p.providerId === providerId && p.modelName === modelName).slice(-144);
 
@@ -256,7 +249,7 @@ function HistoryBar({
               <div className="text-[11px] leading-relaxed space-y-0.5 py-0.5">
                 <div className="flex items-center gap-1.5">
                   <span className={`inline-block w-1.5 h-1.5 rounded-full ${getStatusDotColor(cls)}`} />
-                  <span className="font-medium">{getStatusLabel(cls)}</span>
+                  <span className="font-medium">{getStatusLabel(cls, t)}</span>
                   <span className="text-white/50">·</span>
                   <span className="text-white/60">{formatTime(p.checkedAt)}</span>
                 </div>
@@ -271,7 +264,7 @@ function HistoryBar({
                     TTFT <span className="text-white font-mono">{formatLatency(p.ttftMs)}</span>
                   </span>
                   <span>
-                    Latency <span className="text-white font-mono">{formatLatency(p.latencyMs)}</span>
+                    {t('monitor.latency')} <span className="text-white font-mono">{formatLatency(p.latencyMs)}</span>
                   </span>
                 </div>
                 {p.errorMessage && <div className="text-red-300 pl-3 truncate max-w-[240px]">{p.errorMessage}</div>}
@@ -287,9 +280,31 @@ function HistoryBar({
 }
 
 export function MonitorPage() {
+  const { t } = useTranslation();
   const { statuses, history, targets, globalConfig, running, fetchAll, saveTargets, saveConfig, triggerRun } =
     useMonitor();
   const { providers, fetchProviders } = useProviders();
+
+  const INTERVAL_OPTIONS = [
+    { value: 0, label: t('monitor.default') },
+    { value: 5, label: t('monitor.intervalMin', { count: 5 }) },
+    { value: 10, label: t('monitor.intervalMin', { count: 10 }) },
+    { value: 15, label: t('monitor.intervalMin', { count: 15 }) },
+    { value: 30, label: t('monitor.intervalMin', { count: 30 }) },
+    { value: 60, label: t('monitor.intervalHour') },
+    { value: 120, label: t('monitor.intervalHours', { count: 2 }) },
+    { value: 360, label: t('monitor.intervalHours', { count: 6 }) },
+  ];
+
+  const DEFAULT_INTERVAL_OPTIONS = [
+    { value: 5, label: t('monitor.intervalMin', { count: 5 }) },
+    { value: 10, label: t('monitor.intervalMin', { count: 10 }) },
+    { value: 15, label: t('monitor.intervalMin', { count: 15 }) },
+    { value: 30, label: t('monitor.intervalMin', { count: 30 }) },
+    { value: 60, label: t('monitor.intervalHour') },
+    { value: 120, label: t('monitor.intervalHours', { count: 2 }) },
+    { value: 360, label: t('monitor.intervalHours', { count: 6 }) },
+  ];
   const [lastChecked, setLastChecked] = useState<string>('');
   const [showConfig, setShowConfig] = useState(false);
   const [initialLoaded, setInitialLoaded] = useState(false);
@@ -301,6 +316,10 @@ export function MonitorPage() {
     minOutputTokens: String(globalConfig.healthThresholds.minOutputTokens),
   });
   const [draftTargets, setDraftTargets] = useState<MonitorTarget[]>(targets);
+  const [draftWebhookUrl, setDraftWebhookUrl] = useState(globalConfig.alertWebhookUrl || '');
+  const [draftWebhookSecret, setDraftWebhookSecret] = useState(globalConfig.alertWebhookSecret || '');
+  const [draftAlertLanguage, setDraftAlertLanguage] = useState(globalConfig.alertLanguage || 'en');
+  const [draftReminderMinutes, setDraftReminderMinutes] = useState(globalConfig.alertReminderMinutes ?? 360);
   const [configDirty, setConfigDirty] = useState(false);
   const [expandedModels, setExpandedModels] = useState<Set<string>>(new Set());
 
@@ -322,6 +341,10 @@ export function MonitorPage() {
       ttftSlowMs: String(globalConfig.healthThresholds.ttftSlowMs),
       minOutputTokens: String(globalConfig.healthThresholds.minOutputTokens),
     });
+    setDraftWebhookUrl(globalConfig.alertWebhookUrl || '');
+    setDraftWebhookSecret(globalConfig.alertWebhookSecret || '');
+    setDraftAlertLanguage(globalConfig.alertLanguage || 'en');
+    setDraftReminderMinutes(globalConfig.alertReminderMinutes ?? 360);
   }, [globalConfig]);
 
   useEffect(() => {
@@ -337,10 +360,32 @@ export function MonitorPage() {
         String(globalConfig.healthThresholds[k as keyof HealthThresholds]),
     );
     const targetsChanged = JSON.stringify(draftTargets) !== JSON.stringify(targets);
-    setConfigDirty(intervalChanged || thresholdsChanged || targetsChanged);
-  }, [draftInterval, thresholdTexts, draftTargets, globalConfig, targets]);
+    const webhookChanged = draftWebhookUrl !== (globalConfig.alertWebhookUrl || '');
+    const secretChanged = draftWebhookSecret !== (globalConfig.alertWebhookSecret || '');
+    const langChanged = draftAlertLanguage !== (globalConfig.alertLanguage || 'en');
+    const reminderChanged = draftReminderMinutes !== (globalConfig.alertReminderMinutes ?? 360);
+    setConfigDirty(
+      intervalChanged ||
+        thresholdsChanged ||
+        targetsChanged ||
+        webhookChanged ||
+        secretChanged ||
+        langChanged ||
+        reminderChanged,
+    );
+  }, [
+    draftInterval,
+    thresholdTexts,
+    draftTargets,
+    draftWebhookUrl,
+    draftWebhookSecret,
+    draftAlertLanguage,
+    draftReminderMinutes,
+    globalConfig,
+    targets,
+  ]);
 
-  const handleSaveAll = () => {
+  const handleSaveAll = async () => {
     const parsedThresholds: HealthThresholds = {
       tpsSlowThreshold: parseInt(thresholdTexts.tpsSlowThreshold) || 20,
       tpsVerySlowThreshold: parseInt(thresholdTexts.tpsVerySlowThreshold) || 5,
@@ -350,8 +395,18 @@ export function MonitorPage() {
     saveConfig({
       defaultIntervalMinutes: draftInterval,
       healthThresholds: parsedThresholds,
+      alertWebhookUrl: draftWebhookUrl,
+      alertReminderMinutes: draftReminderMinutes,
+      alertWebhookSecret: draftWebhookSecret,
+      alertLanguage: draftAlertLanguage,
     });
-    saveTargets(draftTargets);
+    try {
+      await saveTargets(draftTargets);
+      setShowConfig(false);
+      setConfigDirty(false);
+    } catch (err: any) {
+      message.error(err.message || 'Save failed');
+    }
   };
   const refreshRef = useRef<ReturnType<typeof setInterval>>(undefined);
 
@@ -408,7 +463,7 @@ export function MonitorPage() {
     const key = `${providerId}::${modelName}`;
     const next: MonitorTarget[] = draftTargetKeys.has(key)
       ? draftTargets.filter((t) => `${t.providerId}::${t.modelName}` !== key)
-      : [...draftTargets, { providerId, modelName, providerName }];
+      : [...draftTargets, { providerId, modelName, providerName, intervalMinutes: 0, alertEnabled: true }];
     setDraftTargets(next);
   };
 
@@ -420,13 +475,25 @@ export function MonitorPage() {
     );
   };
 
+  const updateDraftTargetAlert = (providerId: string, modelName: string, alertEnabled: boolean) => {
+    setDraftTargets(
+      draftTargets.map((t) => (t.providerId === providerId && t.modelName === modelName ? { ...t, alertEnabled } : t)),
+    );
+  };
+
   const selectAllForProvider = (provider: any) => {
     const activeModels = provider.models.filter((m: any) => m.isActive !== false);
     const next = [...draftTargets];
     for (const m of activeModels) {
       const key = `${provider.id}::${m.name}`;
       if (!draftTargetKeys.has(key)) {
-        next.push({ providerId: provider.id, modelName: m.name, providerName: provider.name });
+        next.push({
+          providerId: provider.id,
+          modelName: m.name,
+          providerName: provider.name,
+          intervalMinutes: 0,
+          alertEnabled: true,
+        });
       }
     }
     setDraftTargets(next);
@@ -448,19 +515,21 @@ export function MonitorPage() {
       {/* Header */}
       <div className="glass-card p-4 flex items-center justify-between">
         <div>
-          <h2 className="text-[15px] font-semibold text-text-primary">API Monitor</h2>
+          <h2 className="text-[15px] font-semibold text-text-primary">{t('monitor.apiMonitor')}</h2>
           {lastChecked && (
             <div className="flex items-center gap-1.5 mt-1">
               <ClockCircleOutlined className="text-[11px] text-text-tertiary" />
-              <span className="text-[11px] text-text-tertiary">Last checked: {formatTime(lastChecked)}</span>
+              <span className="text-[11px] text-text-tertiary">
+                {t('monitor.lastChecked')} {formatTime(lastChecked)}
+              </span>
               <span className="text-[10px] text-text-tertiary ml-2">
-                Auto-refresh 60s · Check every {globalConfig.defaultIntervalMinutes} min
+                {t('monitor.autoRefresh', { interval: globalConfig.defaultIntervalMinutes })}
               </span>
             </div>
           )}
         </div>
         <div className="flex items-center gap-2">
-          <Tooltip title="Settings">
+          <Tooltip title={t('monitor.settings')}>
             <Button
               icon={<SettingOutlined />}
               onClick={() => setShowConfig(!showConfig)}
@@ -475,7 +544,7 @@ export function MonitorPage() {
             loading={running}
             size="small"
           >
-            Run Check
+            {t('monitor.runCheck')}
           </Button>
         </div>
       </div>
@@ -486,37 +555,37 @@ export function MonitorPage() {
           <div className="stat-card flex items-center gap-2 col-span-2">
             <div className="w-2 h-2 rounded-full bg-accent-blue" />
             <div>
-              <div className="stat-label">Monitoring</div>
+              <div className="stat-label">{t('monitor.monitoring')}</div>
               <div className="stat-value text-[13px] text-accent-blue">
-                {summary.totalModels} models · {summary.providerCount} providers
+                {t('monitor.monitoringStats', { models: summary.totalModels, providers: summary.providerCount })}
               </div>
             </div>
           </div>
           <div className="stat-card flex items-center gap-2">
             <div className="w-2 h-2 rounded-full bg-emerald-500" />
             <div>
-              <div className="stat-label">Healthy</div>
+              <div className="stat-label">{t('monitor.healthy')}</div>
               <div className="stat-value text-[13px] text-emerald-400">{summary.healthyCount}</div>
             </div>
           </div>
           <div className="stat-card flex items-center gap-2">
             <div className="w-2 h-2 rounded-full bg-amber-500" />
             <div>
-              <div className="stat-label">Slow</div>
+              <div className="stat-label">{t('monitor.slow')}</div>
               <div className="stat-value text-[13px] text-amber-400">{summary.slowCount}</div>
             </div>
           </div>
           <div className="stat-card flex items-center gap-2">
             <div className="w-2 h-2 rounded-full bg-orange-500" />
             <div>
-              <div className="stat-label">Very Slow</div>
+              <div className="stat-label">{t('monitor.verySlow')}</div>
               <div className="stat-value text-[13px] text-orange-400">{summary.verySlowCount}</div>
             </div>
           </div>
           <div className="stat-card flex items-center gap-2">
             <div className="w-2 h-2 rounded-full bg-red-500" />
             <div>
-              <div className="stat-label">Down</div>
+              <div className="stat-label">{t('monitor.down')}</div>
               <div className="stat-value text-[13px] text-red-400">{summary.downCount}</div>
             </div>
           </div>
@@ -526,10 +595,10 @@ export function MonitorPage() {
       {/* Settings Modal */}
       <Modal
         open={showConfig}
-        title="Monitor Settings"
+        title={t('monitor.monitorSettings')}
         onCancel={() => setShowConfig(false)}
         onOk={handleSaveAll}
-        okText="Save"
+        okText={t('common.action.save')}
         okButtonProps={{ disabled: !configDirty }}
         width={780}
         destroyOnHidden
@@ -537,10 +606,10 @@ export function MonitorPage() {
         <div className="space-y-4 py-2">
           {/* Global Config */}
           <div className="space-y-2">
-            <div className="section-header">Global Settings</div>
+            <div className="section-header">{t('monitor.globalSettings')}</div>
             <div className="flex flex-wrap items-center gap-4">
               <div className="flex items-center gap-2">
-                <span className="text-[11px] text-text-secondary">Default interval</span>
+                <span className="text-[11px] text-text-secondary">{t('monitor.defaultInterval')}</span>
                 <Select
                   size="small"
                   value={draftInterval}
@@ -558,11 +627,11 @@ export function MonitorPage() {
           {/* Health Thresholds */}
           <div className="space-y-2">
             <div className="section-header" data-color="amber">
-              Health Thresholds
+              {t('monitor.healthThresholds')}
             </div>
             <div className="flex flex-wrap items-center gap-4">
               <div className="flex items-center gap-2">
-                <span className="text-[11px] text-text-secondary">Slow TPS</span>
+                <span className="text-[11px] text-text-secondary">{t('monitor.slowTps')}</span>
                 <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-400 font-mono">&lt;</span>
                 <InputNumber
                   size="small"
@@ -577,7 +646,7 @@ export function MonitorPage() {
                 <span className="text-[10px] text-text-tertiary">tok/s</span>
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-[11px] text-text-secondary">Very slow TPS</span>
+                <span className="text-[11px] text-text-secondary">{t('monitor.verySlowTps')}</span>
                 <span className="text-[10px] px-1.5 py-0.5 rounded bg-red-500/15 text-red-400 font-mono">&lt;</span>
                 <InputNumber
                   size="small"
@@ -592,7 +661,7 @@ export function MonitorPage() {
                 <span className="text-[10px] text-text-tertiary">tok/s</span>
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-[11px] text-text-secondary">Slow TTFT</span>
+                <span className="text-[11px] text-text-secondary">{t('monitor.slowTtft')}</span>
                 <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-400 font-mono">≥</span>
                 <InputNumber
                   size="small"
@@ -607,7 +676,7 @@ export function MonitorPage() {
                 <span className="text-[10px] text-text-tertiary">ms</span>
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-[11px] text-text-secondary">Min tokens</span>
+                <span className="text-[11px] text-text-secondary">{t('monitor.minTokens')}</span>
                 <InputNumber
                   size="small"
                   style={{ width: 48 }}
@@ -622,10 +691,78 @@ export function MonitorPage() {
             </div>
           </div>
 
+          {/* Alert Notification */}
+          <div className="space-y-2">
+            <div className="section-header" data-color="green">
+              {t('monitor.alertSection')}
+            </div>
+            <div className="space-y-3 pl-1">
+              <div>
+                <label className="text-[11px] text-text-secondary mb-1 block">{t('monitor.alertWebhook')}</label>
+                <Input
+                  placeholder={t('monitor.alertWebhookPlaceholder')}
+                  value={draftWebhookUrl}
+                  onChange={(e) => {
+                    setDraftWebhookUrl(e.target.value);
+                    setConfigDirty(true);
+                  }}
+                />
+              </div>
+              <div>
+                <label className="text-[11px] text-text-secondary mb-1 block">{t('monitor.alertWebhookSecret')}</label>
+                <Input.Password
+                  placeholder={t('monitor.alertWebhookSecretPlaceholder')}
+                  value={draftWebhookSecret}
+                  onChange={(e) => {
+                    setDraftWebhookSecret(e.target.value);
+                    setConfigDirty(true);
+                  }}
+                />
+              </div>
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2">
+                  <label className="text-[11px] text-text-secondary">{t('monitor.alertLanguage')}</label>
+                  <Select
+                    size="small"
+                    value={draftAlertLanguage}
+                    onChange={(v) => {
+                      setDraftAlertLanguage(v);
+                      setConfigDirty(true);
+                    }}
+                    style={{ width: 100 }}
+                    options={[
+                      { label: 'English', value: 'en' },
+                      { label: '中文', value: 'zh' },
+                    ]}
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <label className="text-[11px] text-text-secondary">{t('monitor.reminderInterval')}</label>
+                  <Select
+                    size="small"
+                    value={draftReminderMinutes}
+                    onChange={(v) => {
+                      setDraftReminderMinutes(v);
+                      setConfigDirty(true);
+                    }}
+                    style={{ width: 120 }}
+                    options={[
+                      { label: '1h', value: 60 },
+                      { label: '3h', value: 180 },
+                      { label: '6h', value: 360 },
+                      { label: '12h', value: 720 },
+                      { label: '24h', value: 1440 },
+                    ]}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
           {/* Provider/Model Selection */}
           <div className="space-y-2">
             <div className="section-header" data-color="violet">
-              Targets
+              {t('monitor.targets')}
             </div>
             <div className="max-h-[400px] overflow-y-auto space-y-2">
               {providers.map((provider) => {
@@ -670,14 +807,32 @@ export function MonitorPage() {
                               )}
                             </label>
                             {checked && (
-                              <Select
-                                size="small"
-                                value={targetData?.intervalMinutes || 0}
-                                onChange={(v) => updateDraftTargetInterval(provider.id, m.name, v)}
-                                options={INTERVAL_OPTIONS}
-                                style={{ width: 95 }}
-                                popupMatchSelectWidth={false}
-                              />
+                              <>
+                                <Select
+                                  size="small"
+                                  value={targetData?.intervalMinutes || 0}
+                                  onChange={(v) => updateDraftTargetInterval(provider.id, m.name, v)}
+                                  options={INTERVAL_OPTIONS}
+                                  style={{ width: 95 }}
+                                  popupMatchSelectWidth={false}
+                                />
+                                <Tooltip
+                                  title={
+                                    targetData?.alertEnabled !== false ? t('monitor.alertOn') : t('monitor.alertOff')
+                                  }
+                                >
+                                  <button
+                                    onClick={() =>
+                                      updateDraftTargetAlert(provider.id, m.name, targetData?.alertEnabled === false)
+                                    }
+                                    className={`text-[12px] transition-colors ${
+                                      targetData?.alertEnabled !== false ? 'text-accent-teal' : 'text-text-tertiary'
+                                    }`}
+                                  >
+                                    {targetData?.alertEnabled !== false ? <BellFilled /> : <BellOutlined />}
+                                  </button>
+                                </Tooltip>
+                              </>
                             )}
                           </div>
                         );
@@ -694,14 +849,12 @@ export function MonitorPage() {
       {/* Status Cards Grid */}
       {!initialLoaded ? (
         <div className="glass-card p-8 text-center">
-          <span className="text-text-tertiary text-[13px] animate-pulse">Loading...</span>
+          <span className="text-text-tertiary text-[13px] animate-pulse">{t('common.status.loading')}</span>
         </div>
       ) : targets.length === 0 ? (
         <div className="glass-card p-8 text-center">
           <p className="text-text-tertiary text-[13px]">
-            {providers.length === 0
-              ? 'No providers configured. Add providers in Settings to enable monitoring.'
-              : 'No targets selected. Click the gear icon above to select providers and models to monitor.'}
+            {providers.length === 0 ? t('monitor.noProviders') : t('monitor.noTargets')}
           </p>
         </div>
       ) : (
@@ -721,7 +874,7 @@ export function MonitorPage() {
                     <div className="flex items-center gap-1.5 mt-0.5">
                       <Tag style={{ fontSize: 10, margin: 0 }}>{provider.format}</Tag>
                       <span className="text-[10px] text-text-tertiary">
-                        {providerTargets.length} model{providerTargets.length !== 1 ? 's' : ''}
+                        {t('monitor.modelsCount', { count: providerTargets.length })}
                       </span>
                     </div>
                   </div>
@@ -752,42 +905,58 @@ export function MonitorPage() {
                                         : 'bg-red-500/10 text-red-400'
                                 }`}
                               >
-                                {getStatusLabel(cls)}
+                                {getStatusLabel(cls, t)}
                               </span>
                             )}
+                            <Tooltip
+                              title={target.alertEnabled !== false ? t('monitor.alertOn') : t('monitor.alertOff')}
+                            >
+                              {target.alertEnabled !== false ? (
+                                <BellFilled
+                                  style={{
+                                    fontSize: 11,
+                                    color: cls ? STATUS_ICON_COLORS[cls] : '#34d399',
+                                  }}
+                                />
+                              ) : (
+                                <BellOutlined style={{ fontSize: 11, color: '#555' }} />
+                              )}
+                            </Tooltip>
                           </div>
                           {ping ? (
                             <div className="flex items-center gap-1.5 text-[11px] font-mono text-text-tertiary">
-                              <Tooltip title="TTFT (first token)">
+                              <Tooltip title={t('monitor.ttftFirstToken')}>
                                 <span className={cls ? getStatusTextColor(cls) : ''}>{formatLatency(ping.ttftMs)}</span>
                               </Tooltip>
                               <span>·</span>
-                              <Tooltip title="Tokens per second">
+                              <Tooltip title={t('monitor.tokensPerSecond')}>
                                 <span className={`font-medium ${cls ? getStatusTextColor(cls) : ''}`}>
                                   {ping.status === 'error'
-                                    ? 'FAIL'
+                                    ? t('common.status.fail')
                                     : `${ping.latencyMs > 0 ? Math.round((ping.outputTokens / ping.latencyMs) * 1000) : 0} tok/s`}
                                 </span>
                               </Tooltip>
                             </div>
                           ) : (
-                            <span className="text-[10px] text-text-tertiary">Pending</span>
+                            <span className="text-[10px] text-text-tertiary">{t('common.status.pending')}</span>
                           )}
                         </div>
                         {ping?.outputTokens === 0 && ping.status === 'ok' && (
                           <div className="flex items-center gap-1 text-[10px] text-amber-400">
                             <WarningOutlined className="text-[10px]" />
-                            <span>Empty response (0 tokens)</span>
+                            <span>{t('monitor.emptyResponse')}</span>
                           </div>
                         )}
                         {ping?.errorMessage && (
                           <div className="text-[10px] text-red-400/80 truncate">{ping.errorMessage}</div>
                         )}
                         <div className="flex items-center justify-between">
-                          <HistoryBar history={history} providerId={providerId} modelName={target.modelName} />
+                          <HistoryBar history={history} providerId={providerId} modelName={target.modelName} t={t} />
                           <Tooltip
                             title={
-                              expandedModels.has(`${providerId}::${target.modelName}`) ? 'Hide trends' : 'Show trends'
+                              expandedModels.has(`${providerId}::${target.modelName}`)
+                                ? t('monitor.hideTrends')
+                                : t('monitor.showTrends')
                             }
                           >
                             <button
@@ -808,6 +977,7 @@ export function MonitorPage() {
                             providerId={providerId}
                             modelName={target.modelName}
                             thresholds={thresholds}
+                            t={t}
                           />
                         )}
                       </div>

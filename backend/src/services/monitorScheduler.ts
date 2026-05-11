@@ -3,6 +3,7 @@ import { providerStore } from './providerStore';
 import { monitorConfigStore, MonitorTarget } from './monitorConfigStore';
 import { testProviderConnection } from '../providers/adapter';
 import { monitorStore, HealthStatus } from './monitorStore';
+import { processAlert } from './alertNotifier';
 
 function classifyHealth(status: string, latencyMs: number, ttftMs: number, outputTokens: number): HealthStatus {
   const thresholds = monitorConfigStore.getConfig().healthThresholds;
@@ -42,6 +43,12 @@ async function probeTarget(target: MonitorTarget, isoNow: string): Promise<void>
   const apiKey = providerStore.getDecryptedApiKey(target.providerId);
   if (!apiKey) return;
 
+  let healthStatus: HealthStatus = 'down';
+  let latencyMs = 0;
+  let ttftMs = 0;
+  let outputTokens = 0;
+  let errorMessage: string | undefined;
+
   try {
     const result = await testProviderConnection({
       endpoint: provider.endpoint,
@@ -51,20 +58,27 @@ async function probeTarget(target: MonitorTarget, isoNow: string): Promise<void>
     });
 
     const pingStatus = result.success ? 'ok' : 'error';
+    healthStatus = classifyHealth(pingStatus, result.latencyMs, result.ttftMs, result.outputTokens);
+    latencyMs = result.latencyMs;
+    ttftMs = result.ttftMs;
+    outputTokens = result.outputTokens;
+    errorMessage = result.error || undefined;
+
     monitorStore.insertPing({
       providerId: target.providerId,
       providerName: target.providerName,
       modelName: target.modelName,
       status: pingStatus,
-      healthStatus: classifyHealth(pingStatus, result.latencyMs, result.ttftMs, result.outputTokens),
-      latencyMs: result.latencyMs,
-      ttftMs: result.ttftMs,
-      outputTokens: result.outputTokens,
+      healthStatus,
+      latencyMs,
+      ttftMs,
+      outputTokens,
       responseText: result.responseText,
-      errorMessage: result.error || undefined,
+      errorMessage,
       checkedAt: isoNow,
     });
   } catch (err: any) {
+    errorMessage = err.message || 'Unknown error';
     monitorStore.insertPing({
       providerId: target.providerId,
       providerName: target.providerName,
@@ -74,12 +88,17 @@ async function probeTarget(target: MonitorTarget, isoNow: string): Promise<void>
       latencyMs: 0,
       ttftMs: 0,
       outputTokens: 0,
-      errorMessage: err.message || 'Unknown error',
+      errorMessage,
       checkedAt: isoNow,
     });
   }
 
   lastCheckMap.set(`${target.providerId}::${target.modelName}`, Date.now());
+
+  // Process alert notification (non-blocking)
+  processAlert(target, healthStatus, { latencyMs, ttftMs, outputTokens, errorMessage }).catch((err) => {
+    console.error('[Monitor] Alert processing failed:', err);
+  });
 }
 
 async function runCheck(forceAll = false) {

@@ -1,7 +1,7 @@
 {
   "name": "frontend",
   "private": true,
-  "version": "2.12.1",
+  "version": "2.13.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -18,9 +18,12 @@
     "@tailwindcss/vite": "^4.2.2",
     "antd": "^6.3.5",
     "framer-motion": "^12.38.0",
+    "i18next": "^26.0.10",
+    "i18next-browser-languagedetector": "^8.2.1",
     "js-tiktoken": "^1.0.21",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
+    "react-i18next": "^17.0.7",
     "react-router-dom": "^7.13.2",
     "recharts": "^3.8.1",
     "tailwindcss": "^4.2.2"

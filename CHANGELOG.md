@@ -4,6 +4,22 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [2.13.0] - 2026-05-11
+
+### Added
+- Full i18n support with Chinese/English language switcher (react-i18next)
+- Feishu webhook alert notifications for monitor
+  - Per-target alert enable/disable toggle
+  - Status change detection: new failure, repeated failure (configurable interval), recovery
+  - DB-persisted alert state (survives restarts)
+  - Optional webhook signature verification
+  - Configurable notification language (en/zh, default en)
+- Alert bell indicator on monitor model cards (color-coded by health status)
+
+### Changed
+- All hardcoded UI strings replaced with i18n translation keys
+- Monitor settings modal now includes alert configuration section (webhook URL, secret, language, reminder interval)
+
 ## [2.12.1] - 2026-04-28
 
 ### Fixed

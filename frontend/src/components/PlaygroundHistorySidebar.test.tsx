@@ -19,6 +19,29 @@ vi.mock('@ant-design/icons', () => ({
   ClearOutlined: () => <span data-testid="clear-icon">clear</span>,
 }));
 
+vi.mock('react-i18next', () => ({
+  useTranslation: () => ({
+    t: (key: string) => {
+      const map: Record<string, string> = {
+        'playgroundHistory.history': 'History',
+        'playgroundHistory.clearAllConfirm': 'Clear all history?',
+        'playgroundHistory.clearAll': 'Clear all',
+        'playgroundHistory.loading': 'Loading...',
+        'playgroundHistory.noHistory': 'No history yet. Run a prompt to see it here.',
+        'common.action.clear': 'Clear',
+        'common.action.cancel': 'Cancel',
+        'common.action.clearAll': 'Clear all',
+        'common.time.justNow': 'just now',
+      };
+      return map[key] ?? key;
+    },
+  }),
+}));
+
+vi.mock('../utils/timeFormat', () => ({
+  formatRelativeTime: () => 'just now',
+}));
+
 function makeItem(overrides: Partial<PlaygroundHistoryItem> = {}): PlaygroundHistoryItem {
   return {
     id: 'item-1',

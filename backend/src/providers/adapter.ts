@@ -149,6 +149,7 @@ export class DynamicProvider extends BaseLLMProvider {
     const inputTokens = data.usage?.prompt_tokens || 0;
     const completionTokens = data.usage?.completion_tokens || 0;
     const reasoningTokens = data.usage?.completion_tokens_details?.reasoning_tokens || 0;
+    const cacheReadTokens = data.usage?.prompt_tokens_details?.cached_tokens || 0;
 
     return {
       text: data.choices?.[0]?.message?.content || '',
@@ -160,6 +161,7 @@ export class DynamicProvider extends BaseLLMProvider {
       firstTokenLatency: 0, // Non-streaming: no TTFT available
       estimatedCost: 0,
       model: this.modelName,
+      ...(cacheReadTokens > 0 && { cacheReadTokens }),
     };
   }
 
@@ -240,6 +242,7 @@ export class DynamicProvider extends BaseLLMProvider {
     const inputTokens = usageData?.prompt_tokens || 0;
     const completionTokens = usageData?.completion_tokens || 0;
     const reasoningTokens = usageData?.completion_tokens_details?.reasoning_tokens || 0;
+    const cacheReadTokens = usageData?.prompt_tokens_details?.cached_tokens || 0;
 
     return {
       text: '',
@@ -250,6 +253,7 @@ export class DynamicProvider extends BaseLLMProvider {
       responseTime,
       firstTokenLatency,
       estimatedCost: 0,
+      ...(cacheReadTokens > 0 && { cacheReadTokens }),
       model: this.modelName,
     };
   }
@@ -291,6 +295,8 @@ export class DynamicProvider extends BaseLLMProvider {
     const responseTime = Date.now() - startTime;
     const inputTokens = data.usage?.input_tokens || 0;
     const outputTokens = data.usage?.output_tokens || 0;
+    const cacheCreationTokens = data.usage?.cache_creation_input_tokens || 0;
+    const cacheReadTokens = data.usage?.cache_read_input_tokens || 0;
 
     return {
       text: data.content?.[0]?.text || '',
@@ -302,6 +308,8 @@ export class DynamicProvider extends BaseLLMProvider {
       firstTokenLatency: 0, // Non-streaming: no TTFT available
       estimatedCost: 0,
       model: this.modelName,
+      ...(cacheCreationTokens > 0 && { cacheCreationTokens }),
+      ...(cacheReadTokens > 0 && { cacheReadTokens }),
     };
   }
 
@@ -342,6 +350,8 @@ export class DynamicProvider extends BaseLLMProvider {
     let buffer = '';
     let inputTokens = 0;
     let outputTokens = 0;
+    let cacheCreationTokens = 0;
+    let cacheReadTokens = 0;
 
     while (true) {
       const { done, value } = await reader.read();
@@ -362,6 +372,8 @@ export class DynamicProvider extends BaseLLMProvider {
           }
           if (parsed.type === 'message_start') {
             inputTokens = parsed.message?.usage?.input_tokens || 0;
+            cacheCreationTokens = parsed.message?.usage?.cache_creation_input_tokens || 0;
+            cacheReadTokens = parsed.message?.usage?.cache_read_input_tokens || 0;
           }
           if (parsed.type === 'message_delta') {
             outputTokens = parsed.usage?.output_tokens || outputTokens;
@@ -388,6 +400,8 @@ export class DynamicProvider extends BaseLLMProvider {
       firstTokenLatency: firstTokenTime ? firstTokenTime - startTime : 0,
       estimatedCost: 0,
       model: this.modelName,
+      ...(cacheCreationTokens > 0 && { cacheCreationTokens }),
+      ...(cacheReadTokens > 0 && { cacheReadTokens }),
     };
   }
 

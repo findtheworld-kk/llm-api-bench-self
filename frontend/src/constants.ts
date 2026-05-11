@@ -10,6 +10,8 @@ export const APP_VERSION = `v${pkg.version}`;
 export type PresetCategory = 'standard' | 'long-context';
 
 export interface PresetPrompt {
+  id: string;
+  labelKey: string;
   label: string;
   prompt: string;
   tokens: number;
@@ -23,14 +25,15 @@ export interface PresetPrompt {
 function longContextPreset(
   bucket: keyof typeof shareGPTData.buckets,
   label: string,
+  labelKey: string,
   index = 0,
   multiDoc = false,
 ): PresetPrompt {
   const item = shareGPTData.buckets[bucket][index];
-  return { label, prompt: item.text, tokens: item.tokens, category: 'long-context', multiDoc };
+  return { labelKey, label, prompt: item.text, tokens: item.tokens, category: 'long-context', multiDoc };
 }
 
-function heavyPreset(bucket: '64k' | '150k' | '256k'): PresetPrompt {
+function heavyPreset(bucket: '64k' | '150k' | '256k', labelKey: string): PresetPrompt {
   const labels: Record<string, string> = {
     '64k': 'Long Context 64K',
     '150k': 'Long Context 150K',
@@ -38,6 +41,7 @@ function heavyPreset(bucket: '64k' | '150k' | '256k'): PresetPrompt {
   };
   const tokensMap: Record<string, number> = { '64k': 64_000, '150k': 150_000, '256k': 256_000 };
   return {
+    labelKey,
     label: labels[bucket],
     prompt: '',
     tokens: tokensMap[bucket],
@@ -62,12 +66,14 @@ export async function loadHeavyPreset(bucket: '64k' | '150k' | '256k', index = 0
 
 export const PRESET_PROMPTS: PresetPrompt[] = [
   {
+    labelKey: 'presets.generalKnowledge',
     label: 'General Knowledge',
     prompt: 'Explain quantum computing in simple terms that a 10-year-old could understand.',
     tokens: 16,
     category: 'standard',
   },
   {
+    labelKey: 'presets.codeGeneration',
     label: 'Code Generation',
     prompt:
       'Write a TypeScript function that implements a binary search tree with insert, search, and delete operations.',
@@ -75,24 +81,26 @@ export const PRESET_PROMPTS: PresetPrompt[] = [
     category: 'standard',
   },
   {
+    labelKey: 'presets.creativeWriting',
     label: 'Creative Writing',
     prompt: 'Write a short science fiction story about an AI that discovers it can dream.',
     tokens: 18,
     category: 'standard',
   },
   {
+    labelKey: 'presets.analysis',
     label: 'Analysis',
     prompt:
       'Compare and contrast microservices architecture vs monolithic architecture. Include pros, cons, and when to use each.',
     tokens: 24,
     category: 'standard',
   },
-  longContextPreset('1k', 'Long Context 1K'),
-  longContextPreset('4k', 'Long Context 4K'),
-  longContextPreset('16k', 'Long Context 16K', 0, true),
-  heavyPreset('64k'),
-  heavyPreset('150k'),
-  heavyPreset('256k'),
+  longContextPreset('1k', 'Long Context 1K', 'presets.longContext1k'),
+  longContextPreset('4k', 'Long Context 4K', 'presets.longContext4k'),
+  longContextPreset('16k', 'Long Context 16K', 'presets.longContext16k', 0, true),
+  heavyPreset('64k', 'presets.longContext64k'),
+  heavyPreset('150k', 'presets.longContext150k'),
+  heavyPreset('256k', 'presets.longContext256k'),
 ];
 
 export const QUICK_MAX_TOKENS = [
@@ -134,7 +142,7 @@ export const QUICK_WARMUP = [
 ];
 
 export const QUICK_INTERVAL = [
-  { label: 'None', value: 0 },
+  { label: 'None', labelKey: 'common.status.off', value: 0 },
   { label: '100', value: 100 },
   { label: '500', value: 500 },
   { label: '1000', value: 1000 },
@@ -206,7 +214,7 @@ export function applyOutputScope(prompt: string, scope: number): string {
 }
 
 export const QUICK_QPS = [
-  { label: 'Off', value: 0 },
+  { label: 'Off', labelKey: 'common.status.off', value: 0 },
   { label: '0.1', value: 0.1 },
   { label: '0.2', value: 0.2 },
   { label: '0.5', value: 0.5 },

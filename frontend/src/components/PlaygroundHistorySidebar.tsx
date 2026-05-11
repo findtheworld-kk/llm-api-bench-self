@@ -1,17 +1,8 @@
 import { Popconfirm, Tooltip } from '../antdImports';
 import { DeleteOutlined, CloseOutlined, ClearOutlined } from '@ant-design/icons';
+import { useTranslation } from 'react-i18next';
 import { PlaygroundHistoryItem } from '../hooks/usePlaygroundHistory';
-
-function timeAgo(iso: string): string {
-  const diff = Date.now() - new Date(iso).getTime();
-  const mins = Math.floor(diff / 60000);
-  if (mins < 1) return 'just now';
-  if (mins < 60) return `${mins}m ago`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  return `${days}d ago`;
-}
+import { formatRelativeTime } from '../utils/timeFormat';
 
 interface Props {
   items: PlaygroundHistoryItem[];
@@ -32,12 +23,13 @@ export function PlaygroundHistorySidebar({
   onClose,
   selectedId,
 }: Props) {
+  const { t } = useTranslation();
   return (
     <div className="w-full md:w-80 shrink-0 glass-card p-4 space-y-3 self-start sticky top-4 fixed md:static inset-0 z-50 md:z-auto overflow-y-auto md:overflow-visible bg-bg-primary md:bg-transparent">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <span className="text-[13px] font-medium text-text-primary">History</span>
+          <span className="text-[13px] font-medium text-text-primary">{t('playgroundHistory.history')}</span>
           {items.length > 0 && (
             <span className="text-[10px] px-1.5 py-0.5 rounded bg-white/8 text-text-tertiary font-mono">
               {items.length}
@@ -46,8 +38,13 @@ export function PlaygroundHistorySidebar({
         </div>
         <div className="flex items-center gap-1">
           {items.length > 0 && (
-            <Popconfirm title="Clear all history?" onConfirm={onClearAll} okText="Clear" cancelText="Cancel">
-              <Tooltip title="Clear all">
+            <Popconfirm
+              title={t('playgroundHistory.clearAllConfirm')}
+              onConfirm={onClearAll}
+              okText={t('common.action.clear')}
+              cancelText={t('common.action.cancel')}
+            >
+              <Tooltip title={t('common.action.clearAll')}>
                 <button className="text-[12px] text-text-tertiary hover:text-accent-rose transition-colors p-1">
                   <ClearOutlined />
                 </button>
@@ -66,12 +63,12 @@ export function PlaygroundHistorySidebar({
       {/* List */}
       <div className="space-y-1.5 overflow-y-auto max-h-[calc(100vh-200px)] pr-1">
         {loading && items.length === 0 && (
-          <div className="text-center py-4 text-text-tertiary text-[12px] animate-pulse">Loading...</div>
+          <div className="text-center py-4 text-text-tertiary text-[12px] animate-pulse">
+            {t('playgroundHistory.loading')}
+          </div>
         )}
         {!loading && items.length === 0 && (
-          <div className="text-center py-6 text-text-tertiary text-[12px]">
-            No history yet. Run a prompt to see it here.
-          </div>
+          <div className="text-center py-6 text-text-tertiary text-[12px]">{t('playgroundHistory.noHistory')}</div>
         )}
         {items.map((item) => (
           <div
@@ -106,7 +103,7 @@ export function PlaygroundHistorySidebar({
             </div>
             <div className="text-[11px] text-text-secondary truncate mb-1">{item.promptSnippet}</div>
             <div className="flex items-center justify-between">
-              <span className="text-[10px] text-text-tertiary">{timeAgo(item.createdAt)}</span>
+              <span className="text-[10px] text-text-tertiary">{formatRelativeTime(item.createdAt)}</span>
               <button
                 onClick={(e) => {
                   e.stopPropagation();

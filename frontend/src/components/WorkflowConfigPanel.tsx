@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 import {
   WorkflowTemplate,
@@ -59,7 +60,7 @@ interface WorkflowConfigPanelProps {
 }
 
 const DEFAULT_TASK: () => TaskConfig = () => ({
-  name: 'Task 1',
+  name: 'Task 1', // translated dynamically via t() in addTask()
   description: '',
   config: {
     prompt: 'Explain quantum computing in simple terms.',
@@ -92,7 +93,37 @@ export function WorkflowConfigPanel({
   initialWorkflow,
   onInitialWorkflowConsumed,
 }: WorkflowConfigPanelProps) {
+  const { t } = useTranslation();
   const { providers: configuredProviders, loading: providersLoading, fetchProviders } = useProviders();
+
+  /** Map backend template names to i18n keys for translation */
+  const templateNameKeyMap: Record<string, { name: string; desc: string }> = {
+    'Quick Benchmark': { name: 'templates.quickBenchmark', desc: 'templates.quickBenchmarkDesc' },
+    'Latency Profile': { name: 'templates.latencyProfile', desc: 'templates.latencyProfileDesc' },
+    'Concurrency Ladder': { name: 'templates.concurrencyLadder', desc: 'templates.concurrencyLadderDesc' },
+    'Streaming vs Batch': { name: 'templates.streamingVsBatch', desc: 'templates.streamingVsBatchDesc' },
+    'Token Length Gradient': { name: 'templates.tokenLengthGradient', desc: 'templates.tokenLengthGradientDesc' },
+    'Provider Showdown': { name: 'templates.providerShowdown', desc: 'templates.providerShowdownDesc' },
+    'Cost Efficiency Audit': { name: 'templates.costEfficiencyAudit', desc: 'templates.costEfficiencyAuditDesc' },
+    'API Reliability Test': { name: 'templates.apiReliabilityTest', desc: 'templates.apiReliabilityTestDesc' },
+    'Real-World Simulation': { name: 'templates.realWorldSimulation', desc: 'templates.realWorldSimulationDesc' },
+    'Tool Calling & Structured Output': {
+      name: 'templates.toolCallingStructuredOutput',
+      desc: 'templates.toolCallingStructuredOutputDesc',
+    },
+    'Vision Benchmark': { name: 'templates.visionBenchmark', desc: 'templates.visionBenchmarkDesc' },
+  };
+
+  const getTemplateName = (name: string): string => {
+    const keys = templateNameKeyMap[name];
+    return keys ? t(keys.name) : name;
+  };
+
+  const getTemplateDesc = (name: string, fallback: string): string => {
+    const keys = templateNameKeyMap[name];
+    return keys ? t(keys.desc) : fallback;
+  };
+
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [selectedModels, setSelectedModels] = useState<SelectedModel[]>([]);
@@ -113,7 +144,7 @@ export function WorkflowConfigPanel({
     if (!initialWorkflow || !configuredProviders.length) return;
 
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setName(initialWorkflow.name ? `${initialWorkflow.name} (copy)` : '');
+    setName(initialWorkflow.name ? t('workflow.copy', { name: initialWorkflow.name }) : '');
     setDescription(initialWorkflow.description || '');
     setStopOnFailure(initialWorkflow.options?.stopOnFailure ?? true);
     setCooldown(initialWorkflow.options?.cooldownBetweenTasks ?? 3000);
@@ -192,7 +223,7 @@ export function WorkflowConfigPanel({
   const addTask = () => {
     const lastTask = tasks[tasks.length - 1];
     const newTask: TaskConfig = {
-      name: `Task ${tasks.length + 1}`,
+      name: t('workflow.taskName_default', { number: tasks.length + 1 }),
       description: '',
       config: { ...lastTask.config },
       providers: lastTask.providers ? [...lastTask.providers] : undefined,
@@ -232,7 +263,7 @@ export function WorkflowConfigPanel({
     const source = tasks[index];
     const cloned: TaskConfig = {
       ...source,
-      name: `${source.name} (copy)`,
+      name: t('workflow.copy', { name: source.name }),
       config: { ...source.config },
       tags: { ...source.tags },
       providers: source.providers ? [...source.providers] : undefined,
@@ -317,7 +348,7 @@ export function WorkflowConfigPanel({
       heavyPromptsRef.current.set(index, text);
       setHeavyTaskIndexes((prev) => new Set(prev).add(index));
       updateTaskConfig(index, {
-        prompt: text.slice(0, 200) + `\n\n… [${text.length.toLocaleString()} chars total — full text loaded]`,
+        prompt: text.slice(0, 200) + `\n\n… ${t('workflow.charsTotalLoaded', { count: text.length })}`,
       });
     } else {
       heavyPromptsRef.current.delete(index);
@@ -331,8 +362,8 @@ export function WorkflowConfigPanel({
   };
 
   const loadTemplate = (template: WorkflowTemplate) => {
-    setName(template.name);
-    setDescription(template.description);
+    setName(getTemplateName(template.name));
+    setDescription(getTemplateDesc(template.name, template.description));
     setStopOnFailure(template.options.stopOnFailure);
     setCooldown(template.options.cooldownBetweenTasks);
     setTasks(
@@ -386,7 +417,7 @@ export function WorkflowConfigPanel({
     onChange,
     color = '#73bf69',
   }: {
-    options: { label: string; value: number }[];
+    options: { label: string; labelKey?: string; value: number }[];
     value: number;
     onChange: (v: number) => void;
     color?: string;
@@ -413,7 +444,7 @@ export function WorkflowConfigPanel({
                 color: active ? color : 'rgba(255,255,255,0.35)',
               }}
             >
-              {opt.label}
+              {opt.labelKey ? t(opt.labelKey) : opt.label}
             </button>
           );
         })}
@@ -452,7 +483,7 @@ export function WorkflowConfigPanel({
                 moveTask(index, 1);
               }}
             />
-            <Tooltip title="Duplicate task">
+            <Tooltip title={t('workflow.duplicateTask')}>
               <Button
                 type="text"
                 size="small"
@@ -484,7 +515,7 @@ export function WorkflowConfigPanel({
             <Input
               value={task.name}
               onChange={(e) => updateTask(index, { name: e.target.value })}
-              placeholder="Task name"
+              placeholder={t('workflow.taskName')}
               style={{ flex: 1 }}
             />
           </div>
@@ -493,16 +524,16 @@ export function WorkflowConfigPanel({
           <div className="space-y-2">
             <div className="flex items-center gap-1">
               <span className="text-[10px] font-mono font-semibold uppercase tracking-wider text-text-tertiary">
-                Preset Prompts
+                {t('workflow.presetPrompts')}
               </span>
-              <Tooltip title="Click a preset to fill the prompt field with a pre-configured test prompt">
+              <Tooltip title={t('workflow.presetPromptsTooltip')}>
                 <InfoCircleOutlined className="text-[9px] text-text-tertiary cursor-help" />
               </Tooltip>
             </div>
             <div className="flex flex-wrap gap-1.5">
               {PRESET_PROMPTS.map((preset) => (
                 <button
-                  key={preset.label}
+                  key={preset.labelKey || preset.label}
                   onClick={async () => {
                     const isLC = !!preset.multiDoc;
                     const scope = task._outputScope ?? getStoredOutputScope();
@@ -519,7 +550,7 @@ export function WorkflowConfigPanel({
                       ...newTasks[index],
                       _isLongContext: isLC,
                       _outputScope: scope,
-                      _activePreset: preset.label,
+                      _activePreset: preset.labelKey || preset.label,
                     };
                     if (finalText.length > HEAVY_THRESHOLD) {
                       heavyPromptsRef.current.set(index, finalText);
@@ -528,7 +559,7 @@ export function WorkflowConfigPanel({
                         ...updated.config,
                         prompt:
                           finalText.slice(0, 200) +
-                          `\n\n… [${finalText.length.toLocaleString()} chars total — full text loaded]`,
+                          `\n\n… ${t('workflow.charsTotalLoaded', { count: finalText.length })}`,
                       };
                     } else {
                       heavyPromptsRef.current.delete(index);
@@ -543,12 +574,12 @@ export function WorkflowConfigPanel({
                     setTasks(newTasks);
                   }}
                   className={`text-[10px] px-2 py-1 rounded border transition-all font-medium ${
-                    task._activePreset === preset.label
+                    task._activePreset === (preset.labelKey || preset.label)
                       ? 'border-accent-teal/40 bg-accent-teal/8 text-accent-teal'
                       : 'border-border text-text-secondary hover:border-border-hover hover:text-text-primary'
                   }`}
                 >
-                  {preset.label}
+                  {preset.labelKey ? t(preset.labelKey) : preset.label}
                 </button>
               ))}
             </div>
@@ -557,9 +588,9 @@ export function WorkflowConfigPanel({
           {/* Output Scope (long-context only) */}
           {task._isLongContext && (
             <div className="flex items-center gap-2">
-              <Tooltip title="Controls how many documents the model should read and summarize. Fewer docs = shorter output (~500 tokens for 3 docs). Use this to limit output length while keeping the full prompt as input.">
+              <Tooltip title={t('config.outputScopeTooltip')}>
                 <label className="text-[11px] text-text-secondary font-medium whitespace-nowrap cursor-help">
-                  Output Scope
+                  {t('workflow.outputScope')}
                 </label>
               </Tooltip>
               <Select
@@ -578,7 +609,7 @@ export function WorkflowConfigPanel({
                       ...updated.config,
                       prompt:
                         newPrompt.slice(0, 200) +
-                        `\n\n… [${newPrompt.length.toLocaleString()} chars total — full text loaded]`,
+                        `\n\n… ${t('workflow.charsTotalLoaded', { count: newPrompt.length })}`,
                     };
                   } else {
                     heavyPromptsRef.current.delete(index);
@@ -601,8 +632,8 @@ export function WorkflowConfigPanel({
           {/* Row 3: Prompt TextArea + System Prompt */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
             <div className="space-y-2 lg:col-span-2">
-              <label className="text-[11px] text-text-secondary font-medium">Test Prompt</label>
-              <Tooltip title="The prompt sent to each provider for benchmarking. Use a consistent prompt for fair comparison.">
+              <label className="text-[11px] text-text-secondary font-medium">{t('workflow.testPrompt')}</label>
+              <Tooltip title={t('workflow.testPromptTooltip')}>
                 <InfoCircleOutlined className="text-[10px] text-text-tertiary cursor-help ml-1" />
               </Tooltip>
               <Input.TextArea
@@ -619,12 +650,12 @@ export function WorkflowConfigPanel({
                 }}
                 readOnly={heavyTaskIndexes.has(index)}
                 autoSize={{ minRows: 3, maxRows: 8 }}
-                placeholder="Test prompt — the prompt sent to each provider for benchmarking"
+                placeholder={t('workflow.testPromptPlaceholder')}
                 style={{ fontSize: 13 }}
               />
               {heavyTaskIndexes.has(index) && (
                 <div className="px-2 py-1 rounded bg-surface-secondary border border-border flex items-center justify-between gap-2">
-                  <span className="text-[11px] text-text-tertiary">Large prompt loaded — editing disabled</span>
+                  <span className="text-[11px] text-text-tertiary">{t('workflow.largePromptLoaded')}</span>
                   <button
                     onClick={() => {
                       heavyPromptsRef.current.delete(index);
@@ -637,26 +668,26 @@ export function WorkflowConfigPanel({
                     }}
                     className="text-[11px] text-text-secondary hover:text-text-primary transition-colors"
                   >
-                    Clear
+                    {t('common.action.clear')}
                   </button>
                 </div>
               )}
               {!heavyTaskIndexes.has(index) && (
                 <span className="text-[10px] text-text-tertiary font-mono">
-                  {countTokens(task.config.prompt)} tokens
+                  {countTokens(task.config.prompt)} {t('common.unit.tokens').toLowerCase()}
                 </span>
               )}
             </div>
             <div className="space-y-2">
-              <label className="text-[11px] text-text-secondary font-medium">System Prompt (optional)</label>
-              <Tooltip title="Optional system prompt to set model behavior context before the test prompt">
+              <label className="text-[11px] text-text-secondary font-medium">{t('workflow.systemPrompt')}</label>
+              <Tooltip title={t('workflow.systemPromptTooltip')}>
                 <InfoCircleOutlined className="text-[10px] text-text-tertiary cursor-help ml-1" />
               </Tooltip>
               <Input.TextArea
                 value={task.config.systemPrompt || ''}
                 onChange={(e) => updateTaskConfig(index, { systemPrompt: e.target.value })}
                 autoSize={{ minRows: 3, maxRows: 8 }}
-                placeholder="Optional system prompt to set behavior context..."
+                placeholder={t('workflow.systemPromptPlaceholder')}
                 style={{ fontSize: 13 }}
               />
             </div>
@@ -664,13 +695,13 @@ export function WorkflowConfigPanel({
 
           {/* Row 4: Core Parameters with QuickButtons */}
           <div className="section-header" data-color="teal">
-            Core Parameters
+            {t('workflow.coreParameters')}
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="space-y-2">
               <div className="flex items-center gap-1">
-                <label className="param-chip-label">Max Tokens</label>
-                <Tooltip title="Maximum number of tokens in the model's response (50–32000)">
+                <label className="param-chip-label">{t('workflow.maxTokens')}</label>
+                <Tooltip title={t('workflow.maxTokensTooltip')}>
                   <InfoCircleOutlined className="text-[10px] text-text-tertiary cursor-help" />
                 </Tooltip>
               </div>
@@ -700,8 +731,8 @@ export function WorkflowConfigPanel({
             </div>
             <div className="space-y-2">
               <div className="flex items-center gap-1">
-                <label className="param-chip-label">Concurrency</label>
-                <Tooltip title="Number of parallel requests per iteration (1–5000). Higher = more load.">
+                <label className="param-chip-label">{t('workflow.concurrency')}</label>
+                <Tooltip title={t('workflow.concurrencyTooltip')}>
                   <InfoCircleOutlined className="text-[10px] text-text-tertiary cursor-help" />
                 </Tooltip>
               </div>
@@ -724,8 +755,8 @@ export function WorkflowConfigPanel({
             </div>
             <div className="space-y-2">
               <div className="flex items-center gap-1">
-                <label className="param-chip-label">Iterations</label>
-                <Tooltip title="Number of times to repeat the benchmark (1–10M). More iterations = more reliable averages.">
+                <label className="param-chip-label">{t('workflow.iterations')}</label>
+                <Tooltip title={t('workflow.iterationsTooltip')}>
                   <InfoCircleOutlined className="text-[10px] text-text-tertiary cursor-help" />
                 </Tooltip>
               </div>
@@ -750,13 +781,13 @@ export function WorkflowConfigPanel({
 
           {/* Advanced Parameters */}
           <div className="section-header" data-color="amber">
-            Tuning
+            {t('workflow.tuning')}
           </div>
           <div className="grid grid-cols-3 gap-4">
             <div className="space-y-2">
               <div className="flex items-center gap-1">
-                <label className="param-chip-label">Warmup Runs</label>
-                <Tooltip title="Number of warmup requests before measuring (0–5). Discarded from results.">
+                <label className="param-chip-label">{t('workflow.warmupRuns')}</label>
+                <Tooltip title={t('workflow.warmupRunsTooltip')}>
                   <InfoCircleOutlined className="text-[10px] text-text-tertiary cursor-help" />
                 </Tooltip>
               </div>
@@ -779,8 +810,8 @@ export function WorkflowConfigPanel({
             </div>
             <div className="space-y-2">
               <div className="flex items-center gap-1">
-                <label className="param-chip-label">Interval (ms)</label>
-                <Tooltip title="Delay between consecutive requests in ms (0–10000). Helps avoid rate limiting.">
+                <label className="param-chip-label">{t('workflow.intervalMs')}</label>
+                <Tooltip title={t('workflow.intervalTooltip')}>
                   <InfoCircleOutlined className="text-[10px] text-text-tertiary cursor-help" />
                 </Tooltip>
               </div>
@@ -803,8 +834,8 @@ export function WorkflowConfigPanel({
             </div>
             <div className="space-y-2">
               <div className="flex items-center gap-1">
-                <label className="param-chip-label">Max QPS</label>
-                <Tooltip title="Global token bucket: max requests per second across all concurrent slots. 0 = unlimited.">
+                <label className="param-chip-label">{t('workflow.maxQps')}</label>
+                <Tooltip title={t('workflow.maxQpsTooltip')}>
                   <InfoCircleOutlined className="text-[10px] text-text-tertiary cursor-help" />
                 </Tooltip>
               </div>
@@ -824,20 +855,20 @@ export function WorkflowConfigPanel({
                 size="small"
                 className="font-mono"
                 style={{ width: '100%' }}
-                placeholder="0 = unlimited"
+                placeholder={t('workflow.unlimited')}
               />
             </div>
           </div>
 
           {/* Streaming + Cache Hit Rate + Custom Providers dropdown — one row */}
           <div className="section-header" data-color="violet">
-            Options
+            {t('workflow.options')}
           </div>
           <div className="flex items-center gap-6 flex-wrap">
             <div className="flex items-center gap-2">
               <div className="flex items-center gap-1">
-                <span className="param-chip-label">Streaming</span>
-                <Tooltip title="Use streaming API for real-time token delivery. Recommended for accuracy.">
+                <span className="param-chip-label">{t('workflow.streaming')}</span>
+                <Tooltip title={t('workflow.streamingTooltip')}>
                   <InfoCircleOutlined className="text-[10px] text-text-tertiary cursor-help" />
                 </Tooltip>
               </div>
@@ -854,8 +885,8 @@ export function WorkflowConfigPanel({
                 size="small"
               />
               <div className="flex items-center gap-1">
-                <span className="param-chip-label">Cache Hit Rate</span>
-                <Tooltip title="Prepends a unique UUID to each request to control prefix-cache hit rate. K = iterations × (1 − rate) unique variants are generated and cycled round-robin.">
+                <span className="param-chip-label">{t('workflow.cacheHitRate')}</span>
+                <Tooltip title={t('workflow.cacheHitRateTooltip')}>
                   <InfoCircleOutlined className="text-[10px] text-text-tertiary cursor-help" />
                 </Tooltip>
               </div>
@@ -874,9 +905,9 @@ export function WorkflowConfigPanel({
               )}
             </div>
             <div className="flex items-center gap-2">
-              <Tooltip title="Override global provider selection for this task. Leave empty to use global providers selected above.">
+              <Tooltip title={t('workflow.customProvidersTooltip')}>
                 <span className="text-[11px] text-text-secondary font-medium whitespace-nowrap cursor-help">
-                  Custom Providers
+                  {t('workflow.customProviders')}
                 </span>
               </Tooltip>
               <Select
@@ -886,7 +917,7 @@ export function WorkflowConfigPanel({
                 onChange={(keys: string[]) => {
                   updateTask(index, { providers: keys.length > 0 ? keys : undefined });
                 }}
-                placeholder="Using Global Providers"
+                placeholder={t('workflow.usingGlobalProviders')}
                 allowClear
                 showSearch
                 style={{ minWidth: 200, maxWidth: 360, fontSize: 11 }}
@@ -955,8 +986,8 @@ export function WorkflowConfigPanel({
           {(task.config.requestInterval ?? 0) > 0 && (
             <div className="flex items-center gap-2">
               <div className="flex items-center gap-1">
-                <span className="param-chip-label">Randomize Interval</span>
-                <Tooltip title="Add random jitter to the request interval (±50%) to simulate realistic traffic">
+                <span className="param-chip-label">{t('workflow.randomizeInterval')}</span>
+                <Tooltip title={t('workflow.randomizeIntervalTooltip')}>
                   <InfoCircleOutlined className="text-[10px] text-text-tertiary cursor-help" />
                 </Tooltip>
               </div>
@@ -978,19 +1009,19 @@ export function WorkflowConfigPanel({
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Column 1: Basic Info */}
         <div className="space-y-4">
-          <h2 className="text-sm font-medium text-text-primary">Workflow Setup</h2>
-          <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Workflow name *" />
+          <h2 className="text-sm font-medium text-text-primary">{t('workflow.setup')}</h2>
+          <Input value={name} onChange={(e) => setName(e.target.value)} placeholder={t('workflow.workflowName')} />
           <Input
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            placeholder="Description (optional)"
+            placeholder={t('workflow.description')}
           />
           {/* Global Settings */}
           <div className="flex items-center gap-5">
             <div className="flex items-center gap-2">
               <div className="flex items-center gap-1">
-                <span className="text-xs text-text-secondary font-medium">Stop on Failure</span>
-                <Tooltip title="Stop the entire workflow when any task fails">
+                <span className="text-xs text-text-secondary font-medium">{t('workflow.stopOnFailure')}</span>
+                <Tooltip title={t('workflow.stopOnFailureTooltip')}>
                   <InfoCircleOutlined className="text-[10px] text-text-tertiary cursor-help" />
                 </Tooltip>
               </div>
@@ -998,8 +1029,8 @@ export function WorkflowConfigPanel({
             </div>
             <div className="flex items-center gap-2">
               <div className="flex items-center gap-1">
-                <span className="text-xs text-text-secondary font-medium">Cooldown</span>
-                <Tooltip title="Wait time between tasks (ms). Helps avoid rate limits.">
+                <span className="text-xs text-text-secondary font-medium">{t('workflow.cooldown')}</span>
+                <Tooltip title={t('workflow.cooldownTooltip')}>
                   <InfoCircleOutlined className="text-[10px] text-text-tertiary cursor-help" />
                 </Tooltip>
               </div>
@@ -1022,13 +1053,13 @@ export function WorkflowConfigPanel({
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <span className="text-[11px] text-text-secondary font-medium">
-                  Selected Models ({selectedModels.length})
+                  {t('workflow.selectedModels', { count: selectedModels.length })}
                 </span>
                 <button
                   className="text-[10px] text-text-tertiary hover:text-accent-rose transition-colors"
                   onClick={() => setSelectedModels([])}
                 >
-                  Clear all
+                  {t('workflow.clearAll')}
                 </button>
               </div>
               <div className="space-y-1 max-h-[200px] overflow-y-auto">
@@ -1067,13 +1098,15 @@ export function WorkflowConfigPanel({
 
         {/* Column 2: Providers & Models */}
         <div className="space-y-4">
-          <label className="section-title">Providers & Models</label>
+          <label className="section-title">{t('workflow.providersAndModels')}</label>
           {providersLoading && configuredProviders.length === 0 ? (
-            <div className="text-center py-4 text-text-tertiary text-[11px] animate-pulse">Loading providers...</div>
+            <div className="text-center py-4 text-text-tertiary text-[11px] animate-pulse">
+              {t('workflow.loadingProviders')}
+            </div>
           ) : configuredProviders.length === 0 ? (
             <div className="text-center py-4 border border-dashed border-border rounded-md">
-              <div className="text-text-tertiary text-[11px]">No providers configured</div>
-              <div className="text-text-tertiary text-[10px]">Go to Settings to add providers</div>
+              <div className="text-text-tertiary text-[11px]">{t('workflow.noProviders')}</div>
+              <div className="text-text-tertiary text-[10px]">{t('workflow.goToSettings')}</div>
             </div>
           ) : (
             <div className="space-y-2.5 max-h-[260px] overflow-y-auto pr-1">
@@ -1123,14 +1156,14 @@ export function WorkflowConfigPanel({
           )}
           {selectedModels.length > 0 && (
             <div className="text-[10px] text-text-tertiary font-mono">
-              {selectedModels.length} model{selectedModels.length !== 1 ? 's' : ''} selected
+              {t('workflow.modelsSelected', { count: selectedModels.length })}
             </div>
           )}
         </div>
 
         {/* Column 3: Templates */}
         <div className="space-y-4">
-          <label className="section-title">Quick Templates</label>
+          <label className="section-title">{t('workflow.quickTemplates')}</label>
           <div className="space-y-2 max-h-[260px] overflow-y-auto pr-1">
             {templates.map((template) => (
               <button
@@ -1139,12 +1172,14 @@ export function WorkflowConfigPanel({
                 className="w-full text-left p-3 rounded-md border border-border bg-bg-surface hover:border-accent-violet/30 transition-all group"
               >
                 <div className="text-xs font-medium text-accent-violet group-hover:text-accent-violet/90 mb-1">
-                  {template.name}
+                  {getTemplateName(template.name)}
                 </div>
                 <div className="text-[11px] text-text-secondary leading-relaxed line-clamp-2">
-                  {template.description}
+                  {getTemplateDesc(template.name, template.description)}
                 </div>
-                <div className="text-[10px] text-text-tertiary mt-1 font-mono">{template.tasks.length} tasks</div>
+                <div className="text-[10px] text-text-tertiary mt-1 font-mono">
+                  {t('workflow.templateTasks', { count: template.tasks.length })}
+                </div>
               </button>
             ))}
           </div>
@@ -1155,16 +1190,16 @@ export function WorkflowConfigPanel({
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <label className="section-title !mb-0">
-            {tasks.length === 1 ? 'Task Configuration' : `Tasks (${tasks.length})`}
+            {tasks.length === 1 ? t('workflow.taskConfig') : t('workflow.tasks', { count: tasks.length })}
           </label>
           {tasks.length > 1 && (
             <Button type="primary" ghost size="small" icon={<PlusOutlined />} onClick={addTask}>
-              Add Task
+              {t('workflow.addTask')}
             </Button>
           )}
           {tasks.length === 1 && (
             <Button type="primary" ghost size="small" icon={<PlusOutlined />} onClick={addTask}>
-              Add Another Task
+              {t('workflow.addAnotherTask')}
             </Button>
           )}
         </div>
@@ -1195,7 +1230,9 @@ export function WorkflowConfigPanel({
           block
           size="large"
         >
-          {isRunning ? 'Running...' : `▶ Start Workflow (${tasks.length} tasks, ${selectedModels.length} models)`}
+          {isRunning
+            ? t('common.status.running')
+            : t('workflow.startWorkflow', { taskCount: tasks.length, modelCount: selectedModels.length })}
         </Button>
 
         {isRunning && onCancel && (
@@ -1207,7 +1244,7 @@ export function WorkflowConfigPanel({
         )}
       </div>
 
-      {!name && <p className="text-xs text-text-tertiary text-center">Enter a workflow name to start</p>}
+      {!name && <p className="text-xs text-text-tertiary text-center">{t('workflow.enterName')}</p>}
     </motion.div>
   );
 }

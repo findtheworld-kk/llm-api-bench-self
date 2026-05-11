@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 import { DownOutlined, UpOutlined } from '@ant-design/icons';
 import { Table, Tabs, Tag, Tooltip } from '../antdImports';
@@ -17,7 +18,7 @@ function formatNumber(n: number, decimals = 0): string {
 }
 
 /** Collapsible prompt preview */
-function PromptPreview({ text }: { text: string }) {
+function PromptPreview({ text, t }: { text: string; t: any }) {
   const [open, setOpen] = useState(false);
   const maxLen = 150;
   const truncated = text.length > maxLen;
@@ -33,7 +34,7 @@ function PromptPreview({ text }: { text: string }) {
           className="text-[10px] text-accent-blue hover:text-accent-blue/80 flex items-center gap-1"
         >
           {open ? <UpOutlined style={{ fontSize: 8 }} /> : <DownOutlined style={{ fontSize: 8 }} />}
-          {open ? 'Show less' : 'Show full prompt'}
+          {open ? t('workflowResults.showLess') : t('workflowResults.showFullPrompt')}
         </button>
       )}
     </div>
@@ -50,7 +51,7 @@ function tipTitle(label: string, tip: string) {
 }
 
 /** Shared provider column definitions */
-function providerColumns(hasP95: boolean) {
+function providerColumns(hasP95: boolean, t: any) {
   const cols: Array<{
     title: React.ReactNode;
     dataIndex: string;
@@ -59,7 +60,7 @@ function providerColumns(hasP95: boolean) {
     render?: (value: any, record: any) => any;
   }> = [
     {
-      title: 'Provider',
+      title: t('workflowResults.provider'),
       dataIndex: 'providerName',
       key: 'providerName',
       render: (name: string, record: { providerKey: string }) => (
@@ -67,7 +68,7 @@ function providerColumns(hasP95: boolean) {
       ),
     },
     {
-      title: 'Model',
+      title: t('workflowResults.model'),
       dataIndex: 'model',
       key: 'model',
       render: (model: string, record: { providerKey: string }) => (
@@ -77,7 +78,7 @@ function providerColumns(hasP95: boolean) {
       ),
     },
     {
-      title: tipTitle('Avg RT', 'Average response time per request (milliseconds)'),
+      title: tipTitle(t('workflowResults.avgRt'), t('workflowResults.avgRtTooltip')),
       dataIndex: 'avgResponseTime',
       key: 'avgResponseTime',
       align: 'right' as const,
@@ -87,7 +88,7 @@ function providerColumns(hasP95: boolean) {
 
   if (hasP95) {
     cols.push({
-      title: tipTitle('P95 RT', '95th percentile response time — 95% of requests complete within this time'),
+      title: tipTitle(t('workflowResults.p95Rt'), t('workflowResults.p95RtTooltip')),
       dataIndex: 'p95ResponseTime',
       key: 'p95ResponseTime',
       align: 'right' as const,
@@ -97,58 +98,49 @@ function providerColumns(hasP95: boolean) {
 
   cols.push(
     {
-      title: tipTitle('TTFT', 'Time To First Token — how long until the first token arrives (streaming latency)'),
+      title: tipTitle(t('workflowResults.ttft'), t('workflowResults.ttftTooltip')),
       dataIndex: 'avgFirstTokenLatency',
       key: 'avgFirstTokenLatency',
       align: 'right' as const,
-      render: (val: number) => (val > 0 ? `${formatNumber(val)}ms` : 'N/A'),
+      render: (val: number) => (val > 0 ? `${formatNumber(val)}ms` : t('common.status.na')),
     },
     {
-      title: tipTitle('TPS', 'Tokens Per Second — average output speed of a single request'),
+      title: tipTitle(t('workflowResults.tps'), t('workflowResults.tpsTooltip')),
       dataIndex: 'avgTokensPerSecond',
       key: 'avgTokensPerSecond',
       align: 'right' as const,
       render: (val: number) => formatNumber(val),
     },
     {
-      title: tipTitle(
-        'In T/s',
-        'Input Throughput — concurrency × avg input tokens per request / avg response time. Measures how fast the system processes input tokens',
-      ),
+      title: tipTitle(t('workflowResults.inTs'), t('workflowResults.inTsTooltip')),
       dataIndex: 'inputThroughput',
       key: 'inputThroughput',
       align: 'right' as const,
-      render: (val: number) => (val > 0 ? formatNumber(val) : 'N/A'),
+      render: (val: number) => (val > 0 ? formatNumber(val) : t('common.status.na')),
     },
     {
-      title: tipTitle(
-        'Out T/s',
-        'Output Throughput — concurrency × avg output tokens per request / avg response time. Measures how fast the system generates output tokens',
-      ),
+      title: tipTitle(t('workflowResults.outTs'), t('workflowResults.outTsTooltip')),
       dataIndex: 'outputThroughput',
       key: 'outputThroughput',
       align: 'right' as const,
-      render: (val: number) => (val > 0 ? formatNumber(val) : 'N/A'),
+      render: (val: number) => (val > 0 ? formatNumber(val) : t('common.status.na')),
     },
     {
-      title: tipTitle(
-        'Total T/s',
-        'Total Throughput — concurrency × avg total tokens per request / avg response time. Combined input + output token processing speed',
-      ),
+      title: tipTitle(t('workflowResults.totalTs'), t('workflowResults.totalTsTooltip')),
       dataIndex: 'totalThroughput',
       key: 'totalThroughput',
       align: 'right' as const,
-      render: (val: number) => (val > 0 ? formatNumber(val) : 'N/A'),
+      render: (val: number) => (val > 0 ? formatNumber(val) : t('common.status.na')),
     },
     {
-      title: tipTitle('Tokens', 'Total tokens consumed across all iterations (input + output)'),
+      title: tipTitle(t('workflowResults.tokens'), t('workflowResults.tokensTooltip')),
       dataIndex: 'totalTokens',
       key: 'totalTokens',
       align: 'right' as const,
       render: (val: number) => formatNumber(val),
     },
     {
-      title: tipTitle('Success', 'Percentage of requests that completed successfully without errors'),
+      title: tipTitle(t('workflowResults.success'), t('workflowResults.successTooltip')),
       dataIndex: hasP95 ? 'successRate' : 'overallSuccessRate',
       key: hasP95 ? 'successRate' : 'overallSuccessRate',
       align: 'right' as const,
@@ -164,6 +156,7 @@ function providerColumns(hasP95: boolean) {
 }
 
 export function WorkflowResults({ workflow, onExport: _onExport }: WorkflowResultsProps) {
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<TabType>('overview');
 
   if (!workflow || !workflow.summary) return null;
@@ -233,7 +226,7 @@ export function WorkflowResults({ workflow, onExport: _onExport }: WorkflowResul
 
         {/* Provider comparison table */}
         <Table
-          columns={providerColumns(true)}
+          columns={providerColumns(true, t)}
           dataSource={taskDataSource.length > 0 ? taskDataSource : overviewDataSource}
           pagination={false}
           size="small"
@@ -242,12 +235,23 @@ export function WorkflowResults({ workflow, onExport: _onExport }: WorkflowResul
         {/* Prompt preview */}
         {task?.config?.prompt && (
           <div className="p-3 rounded border border-border/50 bg-bg-primary/50 space-y-1.5">
-            <span className="text-[10px] text-text-secondary uppercase tracking-wider font-medium">Prompt</span>
-            <PromptPreview text={task.config.prompt} />
+            <span className="text-[10px] text-text-secondary uppercase tracking-wider font-medium">
+              {t('workflowResults.prompt')}
+            </span>
+            <PromptPreview text={task.config.prompt} t={t} />
             <div className="flex gap-3 text-[10px] text-text-tertiary font-mono">
-              <span>Max tokens: {formatNumber(task.config.maxTokens)}</span>
-              <span>Concurrency: {task.config.concurrency}</span>
-              <span>Iterations: {task.config.iterations}</span>
+              <span>
+                {t('workflowResults.maxTokens')}
+                {formatNumber(task.config.maxTokens)}
+              </span>
+              <span>
+                {t('workflowResults.concurrency')}
+                {task.config.concurrency}
+              </span>
+              <span>
+                {t('workflowResults.iterations')}
+                {task.config.iterations}
+              </span>
             </div>
           </div>
         )}
@@ -259,14 +263,14 @@ export function WorkflowResults({ workflow, onExport: _onExport }: WorkflowResul
   const tabItems = [
     {
       key: 'overview',
-      label: 'Overview',
+      label: t('workflowResults.overview'),
       children: (
-        <Table columns={providerColumns(false)} dataSource={overviewDataSource} pagination={false} size="small" />
+        <Table columns={providerColumns(false, t)} dataSource={overviewDataSource} pagination={false} size="small" />
       ),
     },
     {
       key: 'tasks',
-      label: 'By Task',
+      label: t('workflowResults.byTask'),
       children: (
         <div className="space-y-5">
           {workflow.tasks.map((task, index) => {
@@ -292,17 +296,28 @@ export function WorkflowResults({ workflow, onExport: _onExport }: WorkflowResul
                   </span>
                 </div>
 
-                <Table columns={providerColumns(true)} dataSource={taskDataSource} pagination={false} size="small" />
+                <Table columns={providerColumns(true, t)} dataSource={taskDataSource} pagination={false} size="small" />
 
                 {/* Prompt preview */}
                 {task.config?.prompt && (
                   <div className="p-3 rounded border border-border/50 bg-bg-primary/50 space-y-1.5">
-                    <span className="text-[10px] text-text-secondary uppercase tracking-wider font-medium">Prompt</span>
-                    <PromptPreview text={task.config.prompt} />
+                    <span className="text-[10px] text-text-secondary uppercase tracking-wider font-medium">
+                      {t('workflowResults.prompt')}
+                    </span>
+                    <PromptPreview text={task.config.prompt} t={t} />
                     <div className="flex gap-3 text-[10px] text-text-tertiary font-mono">
-                      <span>Max tokens: {formatNumber(task.config.maxTokens)}</span>
-                      <span>Concurrency: {task.config.concurrency}</span>
-                      <span>Iterations: {task.config.iterations}</span>
+                      <span>
+                        {t('workflowResults.maxTokens')}
+                        {formatNumber(task.config.maxTokens)}
+                      </span>
+                      <span>
+                        {t('workflowResults.concurrency')}
+                        {task.config.concurrency}
+                      </span>
+                      <span>
+                        {t('workflowResults.iterations')}
+                        {task.config.iterations}
+                      </span>
                     </div>
                   </div>
                 )}

@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
 import { CheckCircleFilled, LoadingOutlined } from '@ant-design/icons';
+import { useTranslation } from 'react-i18next';
 import { BenchmarkRun, getProviderColor, getProviderDisplayName } from '../types';
 import { MetricCard } from './MetricCard';
 import { NeonGauge } from './NeonGauge';
@@ -13,6 +14,7 @@ interface DashboardProps {
 }
 
 export function Dashboard({ run, isRunning }: DashboardProps) {
+  const { t } = useTranslation();
   const hasResults = run && Object.keys(run.results).length > 0;
 
   if (!hasResults) {
@@ -44,12 +46,10 @@ export function Dashboard({ run, isRunning }: DashboardProps) {
               />
             </svg>
             <span className="text-base font-medium text-text-primary mb-1">
-              {isRunning ? 'Running Benchmark...' : 'Ready to Benchmark'}
+              {isRunning ? t('dashboard.runningBenchmark') : t('dashboard.readyToBenchmark')}
             </span>
             <span className="text-text-secondary text-sm text-center leading-relaxed">
-              {isRunning
-                ? 'Testing LLM providers. Results will appear in real-time.'
-                : 'Configure test parameters and start a benchmark to compare LLM performance.'}
+              {isRunning ? t('dashboard.testingProviders') : t('dashboard.configureAndStart')}
             </span>
           </div>
 
@@ -60,40 +60,40 @@ export function Dashboard({ run, isRunning }: DashboardProps) {
                   <div key={p} className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: getProviderColor(p) }} />
                 ))}
               </div>
-              <p className="text-[11px] text-text-tertiary font-mono">Waiting for first results...</p>
+              <p className="text-[11px] text-text-tertiary font-mono">{t('dashboard.waitingForFirstResults')}</p>
             </div>
           )}
         </motion.div>
 
         {isRunning && run && (
           <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="glass-card p-7">
-            <h3 className="section-title">Test Progress</h3>
+            <h3 className="section-title">{t('dashboard.testProgress')}</h3>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               <div className="p-3 rounded-md bg-bg-surface border border-border">
-                <div className="data-label mb-1.5">Providers</div>
+                <div className="data-label mb-1.5">{t('dashboard.providers')}</div>
                 <div className="data-value text-base text-accent-blue">
                   {run.providers.map((p) => getProviderDisplayName(p)).join(', ')}
                 </div>
               </div>
               <div className="p-3 rounded-md bg-bg-surface border border-border">
-                <div className="data-label mb-1.5">Concurrency</div>
+                <div className="data-label mb-1.5">{t('dashboard.concurrency')}</div>
                 <div className="data-value text-base text-accent-violet">{run.config.concurrency}</div>
               </div>
               <div className="p-3 rounded-md bg-bg-surface border border-border">
-                <div className="data-label mb-1.5">Iterations</div>
+                <div className="data-label mb-1.5">{t('dashboard.iterations')}</div>
                 <div className="data-value text-base text-accent-teal">{run.config.iterations}</div>
               </div>
               <div className="p-3 rounded-md bg-bg-surface border border-border">
-                <div className="data-label mb-1.5">Streaming</div>
-                <div className="data-value text-base text-accent-amber">{run.config.streaming ? 'ON' : 'OFF'}</div>
+                <div className="data-label mb-1.5">{t('dashboard.streaming')}</div>
+                <div className="data-value text-base text-accent-amber">
+                  {run.config.streaming ? t('common.status.on') : t('common.status.off')}
+                </div>
               </div>
             </div>
             <div className="mt-4 p-3 rounded-md bg-accent-teal/6 border border-accent-teal/15">
               <div className="flex items-center gap-2">
                 <Spin indicator={<LoadingOutlined style={{ fontSize: 14, color: '#00d4aa' }} spin />} />
-                <span className="text-[12px] text-accent-teal font-mono">
-                  Processing... Results will appear here when ready.
-                </span>
+                <span className="text-[12px] text-accent-teal font-mono">{t('dashboard.processing')}</span>
               </div>
             </div>
           </motion.div>
@@ -131,7 +131,7 @@ export function Dashboard({ run, isRunning }: DashboardProps) {
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <Spin indicator={<LoadingOutlined style={{ fontSize: 14 }} spin />} />
-              <span className="text-sm font-semibold text-text-primary">Benchmark Running</span>
+              <span className="text-sm font-semibold text-text-primary">{t('dashboard.benchmarkRunning')}</span>
             </div>
             <span className="data-value text-sm text-accent-teal">{progressPercent}%</span>
           </div>
@@ -175,7 +175,7 @@ export function Dashboard({ run, isRunning }: DashboardProps) {
                   <span className="text-[11px] text-text-secondary w-16 text-right font-mono">
                     {isProviderDone ? (
                       <Tag color="success" style={{ fontSize: 10, lineHeight: '16px', padding: '0 4px', margin: 0 }}>
-                        Done ✓
+                        {t('dashboard.done')}
                       </Tag>
                     ) : (
                       `${providerCompleted}/${providerTotal}`
@@ -199,26 +199,44 @@ export function Dashboard({ run, isRunning }: DashboardProps) {
           <div className="flex items-center gap-2">
             <CheckCircleFilled style={{ color: '#00d4aa', fontSize: 14 }} />
             <Tag color="success" style={{ fontSize: 13, fontWeight: 600, margin: 0 }}>
-              Benchmark Complete
+              {t('dashboard.benchmarkComplete')}
             </Tag>
           </div>
           <span className="text-[11px] text-text-secondary font-mono">
-            {providers.length} providers · {totalIterations} iterations
+            {t('dashboard.providerStats', { providers: providers.length, iterations: totalIterations })}
           </span>
         </motion.div>
       )}
 
       {/* Metric Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-5">
-        <MetricCard title="Avg Response Time" value={avgResponseTime} unit="ms" color="#5b8def" delay={0} />
-        <MetricCard title="Avg Throughput" value={avgThroughput} unit="tok/s" color="#73bf69" delay={0.05} />
-        <MetricCard title="Sys Throughput" value={avgSystemThroughput} unit="tok/s" color="#73bf69" delay={0.1} />
-        <MetricCard title="Total Iterations" value={totalIterations} color="#a78bfa" delay={0.2} />
+        <MetricCard
+          title={t('dashboard.avgResponseTime')}
+          value={avgResponseTime}
+          unit="ms"
+          color="#5b8def"
+          delay={0}
+        />
+        <MetricCard
+          title={t('dashboard.avgThroughput')}
+          value={avgThroughput}
+          unit="tok/s"
+          color="#73bf69"
+          delay={0.05}
+        />
+        <MetricCard
+          title={t('dashboard.sysThroughput')}
+          value={avgSystemThroughput}
+          unit="tok/s"
+          color="#73bf69"
+          delay={0.1}
+        />
+        <MetricCard title={t('dashboard.totalIterations')} value={totalIterations} color="#a78bfa" delay={0.2} />
       </div>
 
       {/* Gauges */}
       <div className="glass-card p-7">
-        <h3 className="data-label mb-5">Provider Performance</h3>
+        <h3 className="data-label mb-5">{t('dashboard.providerPerformance')}</h3>
         <div className="flex justify-around flex-wrap gap-8">
           {providers.map((p) => (
             <div key={p} className="flex flex-col items-center gap-5">
@@ -232,14 +250,14 @@ export function Dashboard({ run, isRunning }: DashboardProps) {
                 <NeonGauge
                   value={run.results[p]?.summary?.avgTokensPerSecond || 0}
                   max={Math.max(...providers.map((pr) => run.results[pr]?.summary?.avgTokensPerSecond || 1)) * 1.2}
-                  label="Tok/s"
+                  label={t('dashboard.tokPerSec')}
                   color={getProviderColor(p)}
                   size={100}
                 />
                 <NeonGauge
                   value={run.results[p]?.summary?.successRate * 100 || 0}
                   max={100}
-                  label="Success"
+                  label={t('dashboard.success')}
                   color={getProviderColor(p)}
                   size={100}
                 />
@@ -251,11 +269,21 @@ export function Dashboard({ run, isRunning }: DashboardProps) {
 
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <LiveChart results={run.results} metric="responseTime" title="Response Time per Iteration" unit="ms" />
-        <LiveChart results={run.results} metric="tokensPerSecond" title="Tokens/Second per Iteration" unit="tok/s" />
+        <LiveChart
+          results={run.results}
+          metric="responseTime"
+          title={t('dashboard.responseTimePerIteration')}
+          unit="ms"
+        />
+        <LiveChart
+          results={run.results}
+          metric="tokensPerSecond"
+          title={t('dashboard.tokensPerSecPerIteration')}
+          unit="tok/s"
+        />
       </div>
 
-      <LiveChart results={run.results} metric="firstTokenLatency" title="First Token Latency per Iteration" unit="ms" />
+      <LiveChart results={run.results} metric="firstTokenLatency" title={t('dashboard.firstTokenLatency')} unit="ms" />
 
       <RadarComparison results={run.results} />
     </motion.div>

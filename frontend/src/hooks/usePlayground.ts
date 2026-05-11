@@ -11,6 +11,8 @@ export interface PlaygroundMetrics {
   firstTokenLatency: number;
   tokensPerSecond: number;
   model: string;
+  cacheCreationTokens?: number;
+  cacheReadTokens?: number;
 }
 
 export interface PlaygroundParams {
@@ -78,6 +80,8 @@ export function usePlayground() {
           firstTokenLatency: data.firstTokenLatency || 0,
           tokensPerSecond: data.tokensPerSecond || 0,
           model: data.model || '',
+          ...(data.cacheCreationTokens && { cacheCreationTokens: data.cacheCreationTokens }),
+          ...(data.cacheReadTokens && { cacheReadTokens: data.cacheReadTokens }),
         });
       } catch (err: any) {
         if (err.name !== 'AbortError') {
@@ -162,6 +166,8 @@ export function usePlayground() {
                   firstTokenLatency: event.firstTokenLatency || 0,
                   tokensPerSecond: event.tokensPerSecond || 0,
                   model: event.model || '',
+                  ...(event.cacheCreationTokens && { cacheCreationTokens: event.cacheCreationTokens }),
+                  ...(event.cacheReadTokens && { cacheReadTokens: event.cacheReadTokens }),
                 });
               } else if (event.type === 'error') {
                 setError(event.message || 'Stream error');

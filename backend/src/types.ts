@@ -127,6 +127,8 @@ export interface LLMResponse {
   estimatedCost: number;
   model: string;
   completionTokensDetails?: CompletionTokensDetails;
+  cacheCreationTokens?: number;
+  cacheReadTokens?: number;
 }
 
 // ==================== Workflow Types ====================

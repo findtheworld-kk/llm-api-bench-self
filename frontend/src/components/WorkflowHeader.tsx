@@ -1,6 +1,7 @@
 import { Button, Dropdown, Tooltip, Tag, Input } from '../antdImports';
 import type { InputRef } from 'antd';
 import { ArrowLeftOutlined, DownloadOutlined, EditOutlined, CheckOutlined, CloseOutlined } from '@ant-design/icons';
+import { useTranslation } from 'react-i18next';
 import { BenchmarkWorkflow, getProviderColor, getProviderDisplayName } from '../types';
 
 interface WorkflowHeaderProps {
@@ -59,12 +60,13 @@ export function WorkflowHeader({
   onEditNameChange,
   inputRef,
 }: WorkflowHeaderProps) {
+  const { t } = useTranslation();
   const displayName = workflow.name || workflow.id.slice(0, 8);
 
   const exportMenuItems = onExport
     ? [
-        { key: 'json', label: 'Export JSON' },
-        { key: 'csv', label: 'Export CSV' },
+        { key: 'json', label: t('workflowHeader.exportJson') },
+        { key: 'csv', label: t('workflowHeader.exportCsv') },
       ]
     : [];
 
@@ -162,7 +164,7 @@ export function WorkflowHeader({
                 style={{ fontSize: '11px', margin: 0 }}
                 className="font-mono"
               >
-                {workflow.status}
+                {t('common.status.' + workflow.status, workflow.status)}
               </Tag>
             </div>
             <div className="flex items-center gap-1.5 mt-1 flex-wrap max-w-full">
@@ -206,7 +208,7 @@ export function WorkflowHeader({
                     </Tag>
                   ))}
               <span className="text-[10px] text-text-tertiary font-mono ml-2">
-                {workflow.tasks?.length ?? 0} tasks · {formatDate(workflow.createdAt)}
+                {workflow.tasks?.length ?? 0} {t('workflowHeader.tasks')} · {formatDate(workflow.createdAt)}
               </span>
             </div>
           </div>
@@ -214,14 +216,14 @@ export function WorkflowHeader({
         <div className="flex items-center gap-2">
           {workflow.status === 'running' && onCancel && (
             <Button size="small" danger onClick={() => onCancel(workflow.id)}>
-              Cancel
+              {t('workflowHeader.cancel')}
             </Button>
           )}
           {onExport && (
             <Dropdown menu={{ items: exportMenuItems, onClick: handleExportClick }}>
-              <Tooltip title="Export results">
+              <Tooltip title={t('workflowHeader.exportResults')}>
                 <Button size="small" icon={<DownloadOutlined />}>
-                  Export
+                  {t('workflowHeader.export')}
                 </Button>
               </Tooltip>
             </Dropdown>
@@ -232,46 +234,46 @@ export function WorkflowHeader({
       {/* Stat Cards Dashboard — completed/failed/cancelled only */}
       {statCards && (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3 mt-4">
-          <Tooltip title="Total wall-clock time from first task start to last task completion">
+          <Tooltip title={t('workflowHeader.durationTooltip')}>
             <div className="stat-card">
               <span className="stat-value text-accent-blue">{formatDuration(statCards.s.totalDuration)}</span>
-              <span className="stat-label">Duration</span>
+              <span className="stat-label">{t('workflowHeader.duration')}</span>
             </div>
           </Tooltip>
-          <Tooltip title="Total tokens consumed across all providers and tasks">
+          <Tooltip title={t('workflowHeader.tokensTooltip')}>
             <div className="stat-card">
               <span className="stat-value text-accent-violet">{statCards.s.totalTokens.toLocaleString()}</span>
-              <span className="stat-label">Tokens</span>
+              <span className="stat-label">{t('workflowHeader.tokens')}</span>
             </div>
           </Tooltip>
-          <Tooltip title="Best average response time among all providers">
+          <Tooltip title={t('workflowHeader.bestAvgRtTooltip')}>
             <div className="stat-card">
               <span className="stat-value text-accent-teal">{statCards.bestRT.toLocaleString()}ms</span>
-              <span className="stat-label">Best Avg RT</span>
+              <span className="stat-label">{t('workflowHeader.bestAvgRt')}</span>
             </div>
           </Tooltip>
-          <Tooltip title="Average success rate across all providers">
+          <Tooltip title={t('workflowHeader.successRateTooltip')}>
             <div className="stat-card">
               <span
                 className={`stat-value ${statCards.avgSuccess >= 0.95 ? 'text-accent-teal' : statCards.avgSuccess >= 0.8 ? 'text-accent-amber' : 'text-accent-rose'}`}
               >
                 {(statCards.avgSuccess * 100).toFixed(1)}%
               </span>
-              <span className="stat-label">Success Rate</span>
+              <span className="stat-label">{t('workflowHeader.successRate')}</span>
             </div>
           </Tooltip>
-          <Tooltip title="Estimated total cost based on provider pricing">
+          <Tooltip title={t('workflowHeader.estCostTooltip')}>
             <div className="stat-card">
               <span className="stat-value text-accent-coral">${statCards.s.totalCost.toFixed(4)}</span>
-              <span className="stat-label">Est. Cost</span>
+              <span className="stat-label">{t('workflowHeader.estCost')}</span>
             </div>
           </Tooltip>
-          <Tooltip title="Avg total throughput across providers (concurrency × tokens / response time)">
+          <Tooltip title={t('workflowHeader.totalTsTooltip')}>
             <div className="stat-card">
               <span className="stat-value text-accent-violet">
                 {statCards.avgTotalT > 0 ? statCards.avgTotalT.toLocaleString() : '-'}
               </span>
-              <span className="stat-label">Total T/s</span>
+              <span className="stat-label">{t('workflowHeader.totalTs')}</span>
             </div>
           </Tooltip>
         </div>
@@ -281,19 +283,21 @@ export function WorkflowHeader({
       {tokenStats && !isCompleted && (
         <>
           <div className="flex items-center gap-3 mt-2 flex-wrap">
-            <Tooltip title="Total input tokens sent to the API across all requests">
+            <Tooltip title={t('workflowHeader.inputTokensTooltip')}>
               <span className="text-[11px] text-text-secondary font-mono cursor-help">
-                Input Tokens: <span className="text-accent-blue">{tokenStats.inputTokens.toLocaleString()}</span>
+                {t('workflowHeader.inputTokens')}
+                <span className="text-accent-blue">{tokenStats.inputTokens.toLocaleString()}</span>
               </span>
             </Tooltip>
-            <Tooltip title="Total output tokens generated by the model across all requests">
+            <Tooltip title={t('workflowHeader.outputTokensTooltip')}>
               <span className="text-[11px] text-text-secondary font-mono cursor-help">
-                Output Tokens: <span className="text-accent-teal">{tokenStats.outputTokens.toLocaleString()}</span>
+                {t('workflowHeader.outputTokens')}
+                <span className="text-accent-teal">{tokenStats.outputTokens.toLocaleString()}</span>
               </span>
             </Tooltip>
-            <Tooltip title="Ratio of input tokens to output tokens">
+            <Tooltip title={t('workflowHeader.ratioTooltip')}>
               <span className="text-[11px] text-text-secondary font-mono cursor-help">
-                Ratio:{' '}
+                {t('workflowHeader.ratio')}{' '}
                 <span className="text-accent-violet">
                   {tokenStats.outputTokens > 0 && tokenStats.inputTokens > 0
                     ? (() => {
@@ -308,19 +312,21 @@ export function WorkflowHeader({
           </div>
           {(tokenStats.avgInputThroughput > 0 || tokenStats.avgOutputThroughput > 0) && (
             <div className="flex items-center gap-3 mt-1 flex-wrap">
-              <Tooltip title="Input throughput">
+              <Tooltip title={t('workflowHeader.inTsTooltip')}>
                 <span className="text-[11px] text-text-secondary font-mono cursor-help">
-                  In T/s: <span className="text-accent-blue">{tokenStats.avgInputThroughput.toLocaleString()}</span>
+                  {t('workflowHeader.inTs')}
+                  <span className="text-accent-blue">{tokenStats.avgInputThroughput.toLocaleString()}</span>
                 </span>
               </Tooltip>
-              <Tooltip title="Output throughput">
+              <Tooltip title={t('workflowHeader.outTsTooltip')}>
                 <span className="text-[11px] text-text-secondary font-mono cursor-help">
-                  Out T/s: <span className="text-accent-teal">{tokenStats.avgOutputThroughput.toLocaleString()}</span>
+                  {t('workflowHeader.outTs')}
+                  <span className="text-accent-teal">{tokenStats.avgOutputThroughput.toLocaleString()}</span>
                 </span>
               </Tooltip>
-              <Tooltip title="Total throughput">
+              <Tooltip title={t('workflowHeader.totalTsLabelTooltip')}>
                 <span className="text-[11px] text-text-secondary font-mono cursor-help">
-                  Total T/s:{' '}
+                  {t('workflowHeader.totalTsLabel')}{' '}
                   <span className="text-accent-violet">{tokenStats.avgTotalThroughput.toLocaleString()}</span>
                 </span>
               </Tooltip>

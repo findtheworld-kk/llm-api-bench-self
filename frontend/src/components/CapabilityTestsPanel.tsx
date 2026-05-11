@@ -1,4 +1,5 @@
 import { motion } from 'framer-motion';
+import { useTranslation } from 'react-i18next';
 import { CapabilityTest } from '../types';
 import { Card, Tag } from '../antdImports';
 
@@ -7,6 +8,7 @@ interface CapabilityTestsPanelProps {
 }
 
 export function CapabilityTestsPanel({ tests }: CapabilityTestsPanelProps) {
+  const { t } = useTranslation();
   if (!tests || tests.length === 0) return null;
 
   const TypeIcon = ({ type }: { type: string }) => {
@@ -72,9 +74,9 @@ export function CapabilityTestsPanel({ tests }: CapabilityTestsPanelProps) {
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="glass-card p-7">
       <div className="flex items-center justify-between mb-5">
-        <h3 className="text-sm font-medium text-text-secondary uppercase tracking-wider">Capability Tests</h3>
+        <h3 className="text-sm font-medium text-text-secondary uppercase tracking-wider">{t('capability.title')}</h3>
         <span className="text-xs text-text-secondary font-mono">
-          <span className="text-accent-teal">{passedCount}</span>/{tests.length} passed
+          <span className="text-accent-teal">{passedCount}</span>/{tests.length} {t('capability.passed')}
         </span>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
@@ -93,7 +95,7 @@ export function CapabilityTestsPanel({ tests }: CapabilityTestsPanelProps) {
                   <div className="flex items-center justify-between mb-1">
                     <span className="text-sm font-medium text-text-primary">{test.name}</span>
                     <Tag color={test.passed ? 'success' : 'error'} style={{ margin: 0, fontSize: 11 }}>
-                      {test.passed ? 'PASS' : 'FAIL'}
+                      {test.passed ? t('common.status.pass') : t('common.status.fail')}
                     </Tag>
                   </div>
                   <p className="text-xs text-text-secondary mb-1">{test.description}</p>

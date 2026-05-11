@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 import {
   CheckCircleOutlined,
@@ -110,6 +111,7 @@ function ElapsedTimer({ startedAt }: { startedAt: string }) {
 
 /** Completed task result summary pills */
 function CompletedTaskSummary({ workflow, taskIndex }: { workflow: BenchmarkWorkflow; taskIndex: number }) {
+  const { t } = useTranslation();
   const task = workflow.tasks[taskIndex];
   if (!task || !workflow.summary) return null;
 
@@ -139,20 +141,23 @@ function CompletedTaskSummary({ workflow, taskIndex }: { workflow: BenchmarkWork
     <div className="flex items-center gap-3 mt-1 flex-wrap">
       <span className="text-[10px] font-mono" style={{ color: getProviderColor(bestRT.key) }}>
         {formatRT(bestRT.avgResponseTime)}
-        <span className="text-text-tertiary ml-1">fastest</span>
+        <span className="text-text-tertiary ml-1">{t('workflowProgress.fastest')}</span>
       </span>
       <span className="text-[10px] font-mono" style={{ color: getProviderColor(bestTPS.key) }}>
-        {bestTPS.avgTokensPerSecond.toLocaleString()} t/s
-        <span className="text-text-tertiary ml-1">highest</span>
+        {bestTPS.avgTokensPerSecond.toLocaleString()} {t('common.unit.tok/s')}
+        <span className="text-text-tertiary ml-1">{t('workflowProgress.highest')}</span>
       </span>
       {taskMetrics.length > 1 && (
-        <span className="text-[10px] text-text-tertiary font-mono">{taskMetrics.length} providers</span>
+        <span className="text-[10px] text-text-tertiary font-mono">
+          {taskMetrics.length} {t('workflowProgress.providers')}
+        </span>
       )}
     </div>
   );
 }
 
 export function WorkflowProgress({ workflow, taskProgress, liveMetrics, cooldown }: WorkflowProgressProps) {
+  const { t } = useTranslation();
   const [cooldownLeft, setCooldownLeft] = useState(0);
 
   // Countdown tick for cooldown
@@ -183,8 +188,12 @@ export function WorkflowProgress({ workflow, taskProgress, liveMetrics, cooldown
       <div className="space-y-2">
         <div className="flex items-center justify-between text-xs text-text-secondary">
           <span>
-            {completedCount} / {workflow.tasks.length} tasks completed
-            {failedCount > 0 && <span className="text-accent-rose ml-2">{failedCount} failed</span>}
+            {t('workflowProgress.tasksCompleted', { completed: completedCount, total: workflow.tasks.length })}
+            {failedCount > 0 && (
+              <span className="text-accent-rose ml-2">
+                {failedCount} {t('workflowProgress.failed')}
+              </span>
+            )}
           </span>
           <span className="font-mono">{Math.round(progress)}%</span>
         </div>
@@ -200,7 +209,9 @@ export function WorkflowProgress({ workflow, taskProgress, liveMetrics, cooldown
 
       {/* Task Pipeline */}
       <div className="space-y-2">
-        <label className="text-xs text-text-secondary uppercase tracking-wider font-medium">Task Pipeline</label>
+        <label className="text-xs text-text-secondary uppercase tracking-wider font-medium">
+          {t('workflowProgress.taskPipeline')}
+        </label>
         <Timeline
           items={workflow.tasks.map((task, index) => {
             const result = workflow.taskResults[index];
@@ -268,13 +279,16 @@ export function WorkflowProgress({ workflow, taskProgress, liveMetrics, cooldown
                         <div className="flex items-center gap-3 mt-1.5 flex-wrap">
                           <span className="text-[10px] text-text-secondary font-mono flex items-center gap-1">
                             <ThunderboltOutlined style={{ fontSize: 9, color: '#f5a623' }} />
-                            Avg RT: <span className="text-accent-blue">{formatRT(metrics.avgRT)}</span>
+                            {t('workflowProgress.avgRt')}
+                            <span className="text-accent-blue">{formatRT(metrics.avgRT)}</span>
                           </span>
                           <span className="text-[10px] text-text-secondary font-mono">
-                            TPS: <span className="text-accent-teal">{metrics.avgTPS.toLocaleString()}</span>
+                            {t('workflowProgress.tps')}
+                            <span className="text-accent-teal">{metrics.avgTPS.toLocaleString()}</span>
                           </span>
                           <span className="text-[10px] text-text-secondary font-mono">
-                            Last: <span className="text-text-primary">{formatRT(metrics.recentRT)}</span>
+                            {t('workflowProgress.last')}
+                            <span className="text-text-primary">{formatRT(metrics.recentRT)}</span>
                           </span>
                         </div>
                       )}
@@ -287,7 +301,7 @@ export function WorkflowProgress({ workflow, taskProgress, liveMetrics, cooldown
                         color={getStatusTagColor(status)}
                         style={{ fontSize: 10, margin: 0, lineHeight: '16px', padding: '0 4px' }}
                       >
-                        {isCompleted && duration ? formatDuration(duration) : status}
+                        {isCompleted && duration ? formatDuration(duration) : t('common.status.' + status, status)}
                       </Tag>
                     </div>
                     {isActive && (
@@ -306,7 +320,9 @@ export function WorkflowProgress({ workflow, taskProgress, liveMetrics, cooldown
                       className="flex items-center gap-2 px-3 py-1.5 ml-6 mt-1 rounded border border-accent-blue/15 bg-accent-blue/5"
                     >
                       <ClockCircleOutlined style={{ fontSize: 11, color: '#4096ff' }} spin />
-                      <span className="text-[11px] text-accent-blue font-mono">Cooldown: {cooldownLeft}s</span>
+                      <span className="text-[11px] text-accent-blue font-mono">
+                        {t('workflowProgress.cooldownSeconds', { seconds: cooldownLeft })}
+                      </span>
                     </motion.div>
                   )}
                 </>
@@ -319,10 +335,13 @@ export function WorkflowProgress({ workflow, taskProgress, liveMetrics, cooldown
       {/* Timing info */}
       {workflow.startedAt && (
         <div className="text-[10px] text-text-secondary flex gap-5 font-mono">
-          <span>Started: {formatDate(workflow.startedAt)}</span>
+          <span>
+            {t('workflowProgress.started')}
+            {formatDate(workflow.startedAt)}
+          </span>
           {workflow.completedAt && (
             <span>
-              Duration:{' '}
+              {t('workflowProgress.duration')}{' '}
               {formatDuration(new Date(workflow.completedAt).getTime() - new Date(workflow.startedAt).getTime())}
             </span>
           )}

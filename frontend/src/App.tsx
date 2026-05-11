@@ -5,6 +5,8 @@ import theme from 'antd/es/theme';
 import { Layout, Menu, Drawer } from './antdImports';
 import { MenuOutlined } from '@ant-design/icons';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useTranslation } from 'react-i18next';
+import { useLocale } from './hooks/useLocale';
 import { Sidebar, PageType, getMenuItems } from './components/Sidebar';
 import { HistoryPanel } from './components/HistoryPanel';
 import { HistoryDetailPage } from './components/HistoryDetailPage';
@@ -46,17 +48,19 @@ const PAGE_ROUTES: Record<string, string> = {
   settings: '/settings',
 };
 
-const pageConfig: Record<string, { title: string; subtitle: string }> = {
-  workflow: { title: 'Workflow', subtitle: 'Configure and run LLM API benchmarks' },
-  history: { title: 'History', subtitle: 'Browse past workflow results' },
-  'history-detail': { title: 'Workflow Detail', subtitle: 'View workflow results' },
-  playground: { title: 'Playground', subtitle: 'Test model connections and view responses' },
-  monitor: { title: 'Monitor', subtitle: 'API health and latency monitoring' },
-  settings: { title: 'Settings', subtitle: 'API keys and preferences' },
-};
-
 function App() {
   const [authed, setAuthed] = useState(isAuthenticated());
+  const { t } = useTranslation();
+  const { antdLocale } = useLocale();
+
+  const pageConfig: Record<string, { title: string; subtitle: string }> = {
+    workflow: { title: t('page.workflow.title'), subtitle: t('page.workflow.subtitle') },
+    history: { title: t('page.history.title'), subtitle: t('page.history.subtitle') },
+    'history-detail': { title: t('page.historyDetail.title'), subtitle: t('page.historyDetail.subtitle') },
+    playground: { title: t('page.playground.title'), subtitle: t('page.playground.subtitle') },
+    monitor: { title: t('page.monitor.title'), subtitle: t('page.monitor.subtitle') },
+    settings: { title: t('page.settings.title'), subtitle: t('page.settings.subtitle') },
+  };
 
   // Listen for auth expiry events from apiFetch
   useEffect(() => {
@@ -168,6 +172,7 @@ function App() {
     const returnTo = params.get('returnTo') || '/workflow';
     return (
       <ConfigProvider
+        locale={antdLocale}
         theme={{
           algorithm: theme.darkAlgorithm,
           token: {
@@ -217,11 +222,12 @@ function App() {
   };
 
   const isRunning = isWorkflowRunning;
-  const runningLabel = isWorkflowRunning ? 'Workflow Running' : undefined;
+  const runningLabel = isWorkflowRunning ? t('page.workflowRunning') : undefined;
   const error = workflowError;
 
   return (
     <ConfigProvider
+      locale={antdLocale}
       theme={{
         algorithm: theme.darkAlgorithm,
         token: {
@@ -394,7 +400,7 @@ function App() {
               navigate(PAGE_ROUTES[key]);
               setMobileMenuOpen(false);
             }}
-            items={getMenuItems()}
+            items={getMenuItems(t)}
             style={{ borderRight: 0, background: '#141414' }}
           />
         </Drawer>
@@ -425,7 +431,7 @@ function App() {
               >
                 <MenuOutlined style={{ fontSize: 18 }} />
               </button>
-              <h1 className="app-topbar-title">{(pageConfig[activePage] || { title: 'Dashboard' }).title}</h1>
+              <h1 className="app-topbar-title">{(pageConfig[activePage] || { title: t('page.dashboard') }).title}</h1>
               <span className="text-[12px] text-text-tertiary hidden sm:inline">
                 {(pageConfig[activePage] || { subtitle: '' }).subtitle}
               </span>
@@ -449,7 +455,7 @@ function App() {
                   }}
                   className="text-xs underline hover:no-underline ml-4 opacity-70 hover:opacity-100"
                 >
-                  Dismiss
+                  {t('common.action.dismiss')}
                 </button>
               </motion.div>
             )}
@@ -478,12 +484,8 @@ function App() {
                         <path d="M9 5v5M9 12.5v.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
                       </svg>
                       <div>
-                        <p className="text-sm text-text-primary font-medium mb-1">Getting Started</p>
-                        <p className="text-xs text-text-secondary leading-relaxed">
-                          1. Choose a template or name your workflow &nbsp; 2. Select providers to benchmark &nbsp; 3.
-                          Configure tasks (prompt, concurrency, iterations) &nbsp; 4. Click Start to run all tasks
-                          sequentially and compare results.
-                        </p>
+                        <p className="text-sm text-text-primary font-medium mb-1">{t('page.gettingStarted')}</p>
+                        <p className="text-xs text-text-secondary leading-relaxed">{t('page.gettingStartedDesc')}</p>
                       </div>
                     </div>
                   )}
@@ -515,7 +517,7 @@ function App() {
                   {/* Recent Workflows */}
                   {!currentWorkflow && !isWorkflowRunning && workflows.length > 0 && (
                     <div className="glass-card p-5 space-y-3">
-                      <h3 className="text-sm font-medium text-text-primary">Recent Workflows</h3>
+                      <h3 className="text-sm font-medium text-text-primary">{t('page.recentWorkflows')}</h3>
                       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2">
                         {workflows.slice(0, 9).map((wf) => (
                           <button
@@ -534,10 +536,12 @@ function App() {
                                       : 'bg-white/5 text-text-secondary'
                               }`}
                             >
-                              {wf.status}
+                              {t('common.status.' + wf.status, wf.status)}
                             </span>
                             <span className="text-[13px] text-text-primary flex-1 truncate">{wf.name}</span>
-                            <span className="text-[11px] text-text-tertiary font-mono">{wf.tasks.length} tasks</span>
+                            <span className="text-[11px] text-text-tertiary font-mono">
+                              {wf.tasks.length} {t('common.unit.tasks')}
+                            </span>
                           </button>
                         ))}
                       </div>

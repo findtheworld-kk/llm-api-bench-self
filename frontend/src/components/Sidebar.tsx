@@ -7,6 +7,8 @@ import {
   DashboardOutlined,
   LogoutOutlined,
 } from '@ant-design/icons';
+import { useTranslation } from 'react-i18next';
+import { LanguageSwitcher } from './LanguageSwitcher';
 import { APP_VERSION } from '../constants';
 
 const { Sider } = Layout;
@@ -22,38 +24,39 @@ interface SidebarProps {
 }
 
 // eslint-disable-next-line react-refresh/only-export-components
-export function getMenuItems() {
+export function getMenuItems(t: (key: string) => string = (k) => k) {
   return [
     {
       key: 'workflow',
       icon: <BarChartOutlined />,
-      label: 'Workflow',
+      label: t('nav.workflow'),
     },
     {
       key: 'history',
       icon: <HistoryOutlined />,
-      label: 'History',
+      label: t('nav.history'),
     },
     {
       key: 'monitor',
       icon: <DashboardOutlined />,
-      label: 'Monitor',
+      label: t('nav.monitor'),
     },
     {
       key: 'playground',
       icon: <ExperimentOutlined />,
-      label: 'Playground',
+      label: t('nav.playground'),
     },
     {
       key: 'settings',
       icon: <SettingOutlined />,
-      label: 'Settings',
+      label: t('nav.settings'),
     },
   ];
 }
 
 export function Sidebar({ activePage, onNavigate, isRunning, runningLabel, onLogout }: SidebarProps) {
-  const items = getMenuItems();
+  const { t } = useTranslation();
+  const items = getMenuItems(t);
 
   return (
     <Sider
@@ -104,20 +107,23 @@ export function Sidebar({ activePage, onNavigate, isRunning, runningLabel, onLog
             <span
               className={`text-[11px] font-medium font-mono ${isRunning ? 'text-accent-amber' : 'text-text-tertiary'}`}
             >
-              {isRunning ? runningLabel || 'Running...' : 'Ready'}
+              {isRunning ? runningLabel || t('common.status.running') : t('common.status.ready')}
             </span>
           </div>
-          {onLogout && (
-            <Tooltip title="Sign out">
-              <button
-                onClick={onLogout}
-                className="text-text-tertiary hover:text-text-primary transition-colors p-1"
-                aria-label="Sign out"
-              >
-                <LogoutOutlined style={{ fontSize: 13 }} />
-              </button>
-            </Tooltip>
-          )}
+          <div className="flex items-center gap-3">
+            <LanguageSwitcher />
+            {onLogout && (
+              <Tooltip title={t('nav.signOut')}>
+                <button
+                  onClick={onLogout}
+                  className="text-text-tertiary hover:text-text-primary transition-colors p-1"
+                  aria-label={t('nav.signOut')}
+                >
+                  <LogoutOutlined style={{ fontSize: 13 }} />
+                </button>
+              </Tooltip>
+            )}
+          </div>
         </div>
       </div>
     </Sider>

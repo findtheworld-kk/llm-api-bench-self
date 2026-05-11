@@ -1,18 +1,12 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { ProviderConfigResponse, ProviderFormat } from '../types';
+import { useTranslation } from 'react-i18next';
+import { ProviderConfigResponse } from '../types';
 import { useProviders } from '../hooks/useProviders';
 import { Button, Input, InputNumber, Select, Checkbox, Popconfirm, Alert, Tag, Modal } from '../antdImports';
 import { PlusOutlined, ApiOutlined } from '@ant-design/icons';
 import { APP_VERSION } from '../constants';
 import { validateProviderName, validateModelId, validateDisplayName } from '../utils/validation';
-
-const FORMAT_OPTIONS: { value: ProviderFormat; label: string }[] = [
-  { value: 'openai', label: 'OpenAI Compatible' },
-  { value: 'anthropic', label: 'Anthropic' },
-  { value: 'gemini', label: 'Google Gemini' },
-  { value: 'custom', label: 'Custom (OpenAI-compat)' },
-];
 
 interface ModelFormData {
   name: string;
@@ -28,7 +22,7 @@ interface ProviderFormData {
   name: string;
   endpoint: string;
   apiKey: string;
-  format: ProviderFormat;
+  format: string;
   models: ModelFormData[];
 }
 
@@ -51,6 +45,7 @@ const EMPTY_FORM: ProviderFormData = {
 };
 
 export function SettingsPage() {
+  const { t } = useTranslation();
   const {
     providers,
     loading,
@@ -189,28 +184,25 @@ export function SettingsPage() {
       <div className="glass-card p-6 space-y-5">
         <div className="flex items-center justify-between">
           <div>
-            <div className="section-title !mb-0">Provider Configurations</div>
-            <p className="text-[12px] text-text-secondary mt-1">
-              Configure LLM providers with encrypted API key storage. Supports OpenAI, Anthropic, Gemini, and custom
-              endpoints.
-            </p>
+            <div className="section-title !mb-0">{t('settings.title')}</div>
+            <p className="text-[12px] text-text-secondary mt-1">{t('settings.description')}</p>
           </div>
           <Button type="primary" ghost icon={<PlusOutlined />} onClick={openCreateForm}>
-            Add Provider
+            {t('settings.addProvider')}
           </Button>
         </div>
 
         {providerError && <Alert type="error" title={providerError} showIcon closable />}
 
         {loading && providers.length === 0 && (
-          <div className="text-center py-8 text-text-tertiary text-[13px]">Loading providers...</div>
+          <div className="text-center py-8 text-text-tertiary text-[13px]">{t('settings.loadingProviders')}</div>
         )}
 
         {!loading && providers.length === 0 && !showForm && (
           <div className="text-center py-10 border border-dashed border-border rounded-md">
-            <div className="text-text-tertiary text-[13px] mb-2">No providers configured yet</div>
+            <div className="text-text-tertiary text-[13px] mb-2">{t('settings.noProviders')}</div>
             <Button type="link" size="small" onClick={openCreateForm}>
-              Add your first provider
+              {t('settings.addFirstProvider')}
             </Button>
           </div>
         )}
@@ -236,25 +228,28 @@ export function SettingsPage() {
                       <div className="text-[14px] font-semibold text-text-primary truncate">{provider.name}</div>
                       <Tag>{provider.format}</Tag>
                     </div>
-                    <Button onClick={() => openEditForm(provider)}>Edit</Button>
+                    <Button onClick={() => openEditForm(provider)}>{t('common.action.edit')}</Button>
                   </div>
 
                   {/* Info rows */}
                   <div className="space-y-1.5 text-[11px]">
                     <div className="flex items-center gap-2">
-                      <span className="text-text-tertiary w-[52px] flex-shrink-0">Endpoint</span>
+                      <span className="text-text-tertiary w-[52px] flex-shrink-0">{t('settings.endpoint')}</span>
                       <span className="text-text-secondary truncate font-mono">{provider.endpoint}</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className="text-text-tertiary w-[52px] flex-shrink-0">API Key</span>
+                      <span className="text-text-tertiary w-[52px] flex-shrink-0">{t('settings.apiKey')}</span>
                       <span className="text-text-secondary font-mono">{provider.apiKeyMasked}</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className="text-text-tertiary w-[52px] flex-shrink-0">Models</span>
+                      <span className="text-text-tertiary w-[52px] flex-shrink-0">{t('settings.models')}</span>
                       <span className="text-text-secondary">
-                        {activeModels.length} active
+                        {activeModels.length} {t('settings.active')}
                         {inactiveModels.length > 0 && (
-                          <span className="text-text-tertiary"> · {inactiveModels.length} inactive</span>
+                          <span className="text-text-tertiary">
+                            {' '}
+                            · {inactiveModels.length} {t('settings.inactive')}
+                          </span>
                         )}
                       </span>
                     </div>
@@ -268,8 +263,8 @@ export function SettingsPage() {
                       type={testResult.success ? 'success' : 'error'}
                       title={
                         testResult.success
-                          ? `Connection successful (${testResult.latencyMs}ms)`
-                          : `Connection failed: ${testResult.error}`
+                          ? t('settings.connectionSuccess', { latency: testResult.latencyMs })
+                          : t('settings.connectionFailed', { error: testResult.error })
                       }
                       showIcon
                       closable
@@ -336,18 +331,18 @@ export function SettingsPage() {
                     onClick={() => handleTest(provider.id)}
                     loading={testingId === provider.id}
                   >
-                    {testingId === provider.id ? 'Testing...' : 'Test Connection'}
+                    {testingId === provider.id ? t('settings.testing') : t('settings.testConnection')}
                   </Button>
                   <Popconfirm
-                    title="Delete this provider?"
-                    description="This action cannot be undone."
+                    title={t('settings.deleteConfirmTitle')}
+                    description={t('settings.deleteConfirmDesc')}
                     onConfirm={() => deleteProvider(provider.id)}
-                    okText="Delete"
-                    cancelText="Cancel"
+                    okText={t('common.action.delete')}
+                    cancelText={t('common.action.cancel')}
                     okButtonProps={{ danger: true }}
                   >
                     <Button danger ghost>
-                      Delete
+                      {t('common.action.delete')}
                     </Button>
                   </Popconfirm>
                 </div>
@@ -359,10 +354,10 @@ export function SettingsPage() {
         {/* Provider Form Modal */}
         <Modal
           open={showForm}
-          title={editingId ? 'Edit Provider' : 'Add Provider'}
+          title={editingId ? t('settings.editProvider') : t('settings.addProvider')}
           onCancel={closeForm}
           onOk={handleSubmit}
-          okText={editingId ? 'Update' : 'Save'}
+          okText={editingId ? t('common.action.update') : t('common.action.save')}
           okButtonProps={{ disabled: !!(!isFormValid || isNameDuplicate), loading: saving }}
           width={860}
           destroyOnHidden
@@ -371,26 +366,31 @@ export function SettingsPage() {
             {/* Name & Format */}
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-[11px] text-text-secondary mb-1 block">Provider Name</label>
+                <label className="text-[11px] text-text-secondary mb-1 block">{t('settings.providerName')}</label>
                 <Input
-                  placeholder="e.g. My-OpenAI"
+                  placeholder={t('settings.providerNamePlaceholder')}
                   value={form.name}
                   status={isNameDuplicate || (form.name && providerNameError) ? 'error' : undefined}
                   onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
                 />
                 {isNameDuplicate && (
-                  <span className="text-[10px] text-accent-rose mt-0.5 block">Provider name already exists</span>
+                  <span className="text-[10px] text-accent-rose mt-0.5 block">{t('settings.providerNameExists')}</span>
                 )}
                 {!isNameDuplicate && form.name && providerNameError && (
                   <span className="text-[10px] text-accent-rose mt-0.5 block">{providerNameError}</span>
                 )}
               </div>
               <div>
-                <label className="text-[11px] text-text-secondary mb-1 block">Format</label>
+                <label className="text-[11px] text-text-secondary mb-1 block">{t('settings.format')}</label>
                 <Select
                   value={form.format}
                   onChange={(val) => setForm((prev) => ({ ...prev, format: val }))}
-                  options={FORMAT_OPTIONS.map((opt) => ({ value: opt.value, label: opt.label }))}
+                  options={[
+                    { value: 'openai', label: t('settings.formatOpenAI') },
+                    { value: 'anthropic', label: t('settings.formatAnthropic') },
+                    { value: 'gemini', label: t('settings.formatGemini') },
+                    { value: 'custom', label: t('settings.formatCustom') },
+                  ]}
                   style={{ width: '100%' }}
                 />
               </div>
@@ -398,7 +398,7 @@ export function SettingsPage() {
 
             {/* Endpoint */}
             <div>
-              <label className="text-[11px] text-text-secondary mb-1 block">Endpoint URL</label>
+              <label className="text-[11px] text-text-secondary mb-1 block">{t('settings.endpointUrl')}</label>
               <Input
                 placeholder={
                   form.format === 'openai'
@@ -417,11 +417,11 @@ export function SettingsPage() {
             {/* API Key */}
             <div>
               <label className="text-[11px] text-text-secondary mb-1 block">
-                API Key
-                {editingId && <span className="text-text-tertiary ml-1">(leave empty to keep current)</span>}
+                {t('settings.apiKey')}
+                {editingId && <span className="text-text-tertiary ml-1">{t('settings.leaveEmptyToKeep')}</span>}
               </label>
               <Input.Password
-                placeholder={editingId ? 'Leave empty to keep current key' : 'Enter API key'}
+                placeholder={editingId ? t('settings.leaveEmptyToKeepKey') : t('settings.enterApiKey')}
                 value={form.apiKey}
                 onChange={(e) => setForm((prev) => ({ ...prev, apiKey: e.target.value }))}
               />
@@ -430,9 +430,9 @@ export function SettingsPage() {
             {/* Models */}
             <div>
               <div className="flex items-center justify-between mb-2">
-                <label className="text-[11px] text-text-secondary">Models</label>
+                <label className="text-[11px] text-text-secondary">{t('settings.models')}</label>
                 <Button type="link" size="small" icon={<PlusOutlined />} onClick={addModel}>
-                  Add Model
+                  {t('settings.addModel')}
                 </Button>
               </div>
               <div className="grid grid-cols-2 gap-2 max-h-[400px] overflow-y-auto">
@@ -442,14 +442,16 @@ export function SettingsPage() {
                     className={`p-3 rounded bg-bg-card border border-border space-y-2 ${!model.isActive ? 'opacity-50' : ''}`}
                   >
                     <div className="flex items-center justify-between mb-1">
-                      <span className="text-[10px] text-text-tertiary font-medium">Model #{idx + 1}</span>
+                      <span className="text-[10px] text-text-tertiary font-medium">
+                        {t('settings.modelNumber', { number: idx + 1 })}
+                      </span>
                       <div className="flex items-center gap-2">
                         <Checkbox
                           checked={model.isActive}
                           onChange={(e) => updateModel(idx, 'isActive', e.target.checked)}
                           style={{ fontSize: 10 }}
                         >
-                          <span className="text-[10px] text-text-secondary">Active</span>
+                          <span className="text-[10px] text-text-secondary">{t('settings.activeLabel')}</span>
                         </Checkbox>
                         {form.models.length > 1 && (
                           <Button
@@ -459,17 +461,17 @@ export function SettingsPage() {
                             style={{ fontSize: 10 }}
                             onClick={() => removeModel(idx)}
                           >
-                            Remove
+                            {t('settings.remove')}
                           </Button>
                         )}
                       </div>
                     </div>
                     <div className="grid grid-cols-2 gap-2">
                       <div>
-                        <label className="text-[10px] text-text-tertiary mb-0.5 block">Model ID</label>
+                        <label className="text-[10px] text-text-tertiary mb-0.5 block">{t('settings.modelId')}</label>
                         <Input
                           size="small"
-                          placeholder="e.g. gpt-4o"
+                          placeholder={t('settings.modelIdPlaceholder')}
                           value={model.name}
                           status={model.name && modelErrors[idx]?.name ? 'error' : undefined}
                           onChange={(e) => updateModel(idx, 'name', e.target.value)}
@@ -479,10 +481,12 @@ export function SettingsPage() {
                         )}
                       </div>
                       <div>
-                        <label className="text-[10px] text-text-tertiary mb-0.5 block">Display Name</label>
+                        <label className="text-[10px] text-text-tertiary mb-0.5 block">
+                          {t('settings.displayName')}
+                        </label>
                         <Input
                           size="small"
-                          placeholder="e.g. GPT-4o (optional)"
+                          placeholder={t('settings.displayNamePlaceholder')}
                           value={model.displayName}
                           status={model.displayName && modelErrors[idx]?.displayName ? 'error' : undefined}
                           onChange={(e) => updateModel(idx, 'displayName', e.target.value)}
@@ -495,7 +499,7 @@ export function SettingsPage() {
                       </div>
                     </div>
                     <div>
-                      <label className="text-[10px] text-text-tertiary mb-0.5 block">Context Size</label>
+                      <label className="text-[10px] text-text-tertiary mb-0.5 block">{t('settings.contextSize')}</label>
                       <InputNumber
                         changeOnBlur
                         size="small"
@@ -511,19 +515,19 @@ export function SettingsPage() {
                         checked={model.supportsVision}
                         onChange={(e) => updateModel(idx, 'supportsVision', e.target.checked)}
                       >
-                        <span className="text-[11px] text-text-secondary">Vision</span>
+                        <span className="text-[11px] text-text-secondary">{t('settings.vision')}</span>
                       </Checkbox>
                       <Checkbox
                         checked={model.supportsTools}
                         onChange={(e) => updateModel(idx, 'supportsTools', e.target.checked)}
                       >
-                        <span className="text-[11px] text-text-secondary">Tool Calling</span>
+                        <span className="text-[11px] text-text-secondary">{t('settings.toolCalling')}</span>
                       </Checkbox>
                       <Checkbox
                         checked={model.supportsStreaming}
                         onChange={(e) => updateModel(idx, 'supportsStreaming', e.target.checked)}
                       >
-                        <span className="text-[11px] text-text-secondary">Streaming</span>
+                        <span className="text-[11px] text-text-secondary">{t('settings.streaming')}</span>
                       </Checkbox>
                     </div>
                   </div>
@@ -536,16 +540,13 @@ export function SettingsPage() {
 
       {/* About */}
       <div className="glass-card p-6 space-y-3">
-        <div className="section-title !mb-0">About</div>
+        <div className="section-title !mb-0">{t('settings.about')}</div>
         <div className="space-y-1.5 text-[13px] text-text-secondary">
           <p>
             <span className="text-text-primary font-medium">LLM API Bench</span>
             <span className="text-text-tertiary ml-1.5 font-mono">{APP_VERSION}</span>
           </p>
-          <p>
-            A real-time benchmarking tool for comparing LLM provider performance across latency, throughput, and cost
-            metrics.
-          </p>
+          <p>{t('settings.aboutDescription')}</p>
         </div>
       </div>
     </div>

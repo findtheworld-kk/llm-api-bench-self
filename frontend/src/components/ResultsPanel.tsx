@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useTranslation } from 'react-i18next';
 import {
   BarChart,
   Bar,
@@ -22,6 +23,7 @@ interface ResultsPanelProps {
 type ViewMode = 'cards' | 'table';
 
 export function ResultsPanel({ run, onExport }: ResultsPanelProps) {
+  const { t } = useTranslation();
   const [viewMode, setViewMode] = useState<ViewMode>('cards');
   const [showCharts, setShowCharts] = useState(false);
 
@@ -73,7 +75,7 @@ export function ResultsPanel({ run, onExport }: ResultsPanelProps) {
 
   const tableColumns = [
     {
-      title: 'Provider',
+      title: t('resultsPanel.provider'),
       dataIndex: 'provider',
       key: 'provider',
       render: (p: string) => (
@@ -84,7 +86,7 @@ export function ResultsPanel({ run, onExport }: ResultsPanelProps) {
       ),
     },
     {
-      title: tip('Avg Response', 'Average response time per request (milliseconds)'),
+      title: tip(t('resultsPanel.avgResponse'), t('resultsPanel.avgResponseTooltip')),
       dataIndex: 'summary',
       key: 'avgResponse',
       align: 'right' as const,
@@ -93,7 +95,7 @@ export function ResultsPanel({ run, onExport }: ResultsPanelProps) {
       ),
     },
     {
-      title: tip('P95', '95th percentile response time — 95% of requests complete within this time'),
+      title: tip(t('resultsPanel.p95'), t('resultsPanel.p95Tooltip')),
       dataIndex: 'summary',
       key: 'p95',
       align: 'right' as const,
@@ -102,7 +104,7 @@ export function ResultsPanel({ run, onExport }: ResultsPanelProps) {
       ),
     },
     {
-      title: tip('Tokens/s', 'Tokens Per Second — average output speed of a single request'),
+      title: tip(t('resultsPanel.tokensPerSec'), t('resultsPanel.tokensPerSecTooltip')),
       dataIndex: 'provider',
       key: 'tokensPerSec',
       align: 'right' as const,
@@ -113,7 +115,7 @@ export function ResultsPanel({ run, onExport }: ResultsPanelProps) {
       ),
     },
     {
-      title: tip('Sys TP', 'System Throughput — total output tokens / wall-clock time, accounting for concurrency'),
+      title: tip(t('resultsPanel.sysTp'), t('resultsPanel.sysTpTooltip')),
       dataIndex: 'provider',
       key: 'sysTp',
       align: 'right' as const,
@@ -124,10 +126,7 @@ export function ResultsPanel({ run, onExport }: ResultsPanelProps) {
       ),
     },
     {
-      title: tip(
-        'TTFT P50',
-        'Time To First Token (median) — 50% of requests receive their first token within this time',
-      ),
+      title: tip(t('resultsPanel.ttftP50'), t('resultsPanel.ttftP50Tooltip')),
       dataIndex: 'summary',
       key: 'ttftP50',
       align: 'right' as const,
@@ -135,40 +134,34 @@ export function ResultsPanel({ run, onExport }: ResultsPanelProps) {
         <span className="data-value text-xs text-text-primary">
           {s.p50FirstTokenLatency || s.avgFirstTokenLatency
             ? `${s.p50FirstTokenLatency || s.avgFirstTokenLatency}ms`
-            : 'N/A'}
+            : t('common.status.na')}
         </span>
       ),
     },
     {
-      title: tip(
-        'TTFT P95',
-        'Time To First Token (95th percentile) — 95% of requests receive their first token within this time',
-      ),
+      title: tip(t('resultsPanel.ttftP95'), t('resultsPanel.ttftP95Tooltip')),
       dataIndex: 'summary',
       key: 'ttftP95',
       align: 'right' as const,
       render: (s: BenchmarkRun['results'][string]['summary']) => (
         <span className="data-value text-xs text-text-primary">
-          {s.p95FirstTokenLatency ? `${s.p95FirstTokenLatency}ms` : 'N/A'}
+          {s.p95FirstTokenLatency ? `${s.p95FirstTokenLatency}ms` : t('common.status.na')}
         </span>
       ),
     },
     {
-      title: tip(
-        'TTFT P99',
-        'Time To First Token (99th percentile) — 99% of requests receive their first token within this time',
-      ),
+      title: tip(t('resultsPanel.ttftP99'), t('resultsPanel.ttftP99Tooltip')),
       dataIndex: 'summary',
       key: 'ttftP99',
       align: 'right' as const,
       render: (s: BenchmarkRun['results'][string]['summary']) => (
         <span className="data-value text-xs text-text-primary">
-          {s.p99FirstTokenLatency ? `${s.p99FirstTokenLatency}ms` : 'N/A'}
+          {s.p99FirstTokenLatency ? `${s.p99FirstTokenLatency}ms` : t('common.status.na')}
         </span>
       ),
     },
     {
-      title: tip('Reasoning', 'Total reasoning tokens used by the model (for models with chain-of-thought)'),
+      title: tip(t('resultsPanel.reasoning'), t('resultsPanel.reasoningTooltip')),
       dataIndex: 'totalReasoning',
       key: 'reasoning',
       align: 'right' as const,
@@ -177,7 +170,7 @@ export function ResultsPanel({ run, onExport }: ResultsPanelProps) {
       ),
     },
     {
-      title: tip('Cost', 'Estimated API cost based on token usage and provider pricing'),
+      title: tip(t('resultsPanel.cost'), t('resultsPanel.costTooltip')),
       dataIndex: 'summary',
       key: 'cost',
       align: 'right' as const,
@@ -186,7 +179,7 @@ export function ResultsPanel({ run, onExport }: ResultsPanelProps) {
       ),
     },
     {
-      title: tip('Success', 'Percentage of requests that completed successfully without errors'),
+      title: tip(t('resultsPanel.success'), t('resultsPanel.successTooltip')),
       dataIndex: 'summary',
       key: 'success',
       align: 'right' as const,
@@ -203,7 +196,7 @@ export function ResultsPanel({ run, onExport }: ResultsPanelProps) {
       {/* Header */}
       <div className="glass-card p-5">
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-text-primary">Results Summary</h3>
+          <h3 className="text-sm font-semibold text-text-primary">{t('resultsPanel.resultsSummary')}</h3>
           <div className="flex items-center gap-2">
             <Segmented
               value={viewMode}
@@ -213,7 +206,7 @@ export function ResultsPanel({ run, onExport }: ResultsPanelProps) {
                   label: (
                     <span className="flex items-center gap-1 font-mono" style={{ fontSize: '11px' }}>
                       <AppstoreOutlined style={{ fontSize: 12 }} />
-                      Cards
+                      {t('resultsPanel.cards')}
                     </span>
                   ),
                   value: 'cards',
@@ -222,7 +215,7 @@ export function ResultsPanel({ run, onExport }: ResultsPanelProps) {
                   label: (
                     <span className="flex items-center gap-1 font-mono" style={{ fontSize: '11px' }}>
                       <TableOutlined style={{ fontSize: 12 }} />
-                      Table
+                      {t('resultsPanel.table')}
                     </span>
                   ),
                   value: 'table',
@@ -236,7 +229,7 @@ export function ResultsPanel({ run, onExport }: ResultsPanelProps) {
               className="font-mono"
               style={{ fontSize: '11px' }}
             >
-              JSON
+              {t('resultsPanel.json')}
             </Button>
             <Button
               size="small"
@@ -245,7 +238,7 @@ export function ResultsPanel({ run, onExport }: ResultsPanelProps) {
               className="font-mono"
               style={{ fontSize: '11px' }}
             >
-              CSV
+              {t('resultsPanel.csv')}
             </Button>
           </div>
         </div>
@@ -291,15 +284,15 @@ export function ResultsPanel({ run, onExport }: ResultsPanelProps) {
                         fontSize: '11px',
                       }}
                     >
-                      {(s.successRate * 100).toFixed(0)}% success
+                      {t('resultsPanel.successTag', { rate: (s.successRate * 100).toFixed(0) })}
                     </Tag>
                   </div>
 
                   <div className="p-5">
                     <div className="grid grid-cols-2 gap-4 mb-5">
                       <div>
-                        <Tooltip title="Tokens Per Second — average output speed of a single request">
-                          <div className="data-label mb-1.5 cursor-help">Throughput</div>
+                        <Tooltip title={t('resultsPanel.tokensPerSecTooltip')}>
+                          <div className="data-label mb-1.5 cursor-help">{t('resultsPanel.throughput')}</div>
                         </Tooltip>
                         <div className="data-value text-2xl" style={{ color: getProviderColor(p) }}>
                           {s.avgTokensPerSecond}
@@ -307,8 +300,8 @@ export function ResultsPanel({ run, onExport }: ResultsPanelProps) {
                         </div>
                       </div>
                       <div>
-                        <Tooltip title="Average response time per request (milliseconds)">
-                          <div className="data-label mb-1.5 cursor-help">Avg Response</div>
+                        <Tooltip title={t('resultsPanel.avgResponseTooltip')}>
+                          <div className="data-label mb-1.5 cursor-help">{t('resultsPanel.avgResponseLabel')}</div>
                         </Tooltip>
                         <div className="data-value text-2xl text-text-primary">
                           {s.avgResponseTime}
@@ -318,47 +311,47 @@ export function ResultsPanel({ run, onExport }: ResultsPanelProps) {
                     </div>
 
                     <div className="grid grid-cols-3 gap-2 text-xs">
-                      <Tooltip title="95th percentile response time — 95% of requests complete within this time">
+                      <Tooltip title={t('resultsPanel.p95Tooltip')}>
                         <div className="p-2.5 rounded-md bg-bg-surface border border-border text-center cursor-help">
-                          <div className="text-text-secondary mb-1 text-[10px]">P95</div>
+                          <div className="text-text-secondary mb-1 text-[10px]">{t('resultsPanel.p95')}</div>
                           <div className="data-value text-text-primary text-xs">{s.p95ResponseTime}ms</div>
                         </div>
                       </Tooltip>
-                      <Tooltip title="Time To First Token (median) — 50% of requests receive their first token within this time">
+                      <Tooltip title={t('resultsPanel.ttftP50Tooltip')}>
                         <div className="p-2.5 rounded-md bg-bg-surface border border-border text-center cursor-help">
-                          <div className="text-text-secondary mb-1 text-[10px]">TTFT P50</div>
+                          <div className="text-text-secondary mb-1 text-[10px]">{t('resultsPanel.ttftP50')}</div>
                           <div className="data-value text-text-primary text-xs">
                             {s.p50FirstTokenLatency || s.avgFirstTokenLatency
                               ? `${s.p50FirstTokenLatency || s.avgFirstTokenLatency}ms`
-                              : 'N/A'}
+                              : t('common.status.na')}
                           </div>
                         </div>
                       </Tooltip>
-                      <Tooltip title="System Throughput — total output tokens / wall-clock time, accounting for concurrency">
+                      <Tooltip title={t('resultsPanel.sysTpTooltip')}>
                         <div className="p-2.5 rounded-md bg-bg-surface border border-border text-center cursor-help">
-                          <div className="text-text-secondary mb-1 text-[10px]">Sys TP</div>
+                          <div className="text-text-secondary mb-1 text-[10px]">{t('resultsPanel.sysTpLabel')}</div>
                           <div className="data-value text-xs" style={{ color: getProviderColor(p) }}>
                             {s.systemThroughput || '-'}
                           </div>
                         </div>
                       </Tooltip>
-                      <Tooltip title="Time To First Token (95th percentile)">
+                      <Tooltip title={t('resultsPanel.ttftP95Tooltip')}>
                         <div className="p-2.5 rounded-md bg-bg-surface border border-border text-center cursor-help">
-                          <div className="text-text-secondary mb-1 text-[10px]">TTFT P95</div>
+                          <div className="text-text-secondary mb-1 text-[10px]">{t('resultsPanel.ttftP95Label')}</div>
                           <div className="data-value text-text-primary text-xs">
-                            {s.p95FirstTokenLatency ? `${s.p95FirstTokenLatency}ms` : 'N/A'}
+                            {s.p95FirstTokenLatency ? `${s.p95FirstTokenLatency}ms` : t('common.status.na')}
                           </div>
                         </div>
                       </Tooltip>
-                      <Tooltip title="Estimated API cost based on token usage and provider pricing">
+                      <Tooltip title={t('resultsPanel.costTooltip')}>
                         <div className="p-2.5 rounded-md bg-bg-surface border border-border text-center cursor-help">
-                          <div className="text-text-secondary mb-1 text-[10px]">Cost</div>
+                          <div className="text-text-secondary mb-1 text-[10px]">{t('resultsPanel.costLabel')}</div>
                           <div className="data-value text-accent-amber text-xs">${s.estimatedCost.toFixed(4)}</div>
                         </div>
                       </Tooltip>
-                      <Tooltip title="Total reasoning tokens used by the model (for models with chain-of-thought)">
+                      <Tooltip title={t('resultsPanel.reasoningTooltip')}>
                         <div className="p-2.5 rounded-md bg-bg-surface border border-border text-center cursor-help">
-                          <div className="text-text-secondary mb-1 text-[10px]">Reasoning</div>
+                          <div className="text-text-secondary mb-1 text-[10px]">{t('resultsPanel.reasoningLabel')}</div>
                           <div className="data-value text-accent-violet text-xs">
                             {totalReasoning > 0 ? totalReasoning.toLocaleString() : '-'}
                           </div>
@@ -388,7 +381,7 @@ export function ResultsPanel({ run, onExport }: ResultsPanelProps) {
         className="font-mono"
         style={{ fontSize: '11px' }}
       >
-        {showCharts ? 'Hide Charts' : 'Show Comparison Charts'}
+        {showCharts ? t('resultsPanel.hideCharts') : t('resultsPanel.showComparisonCharts')}
       </Button>
 
       <AnimatePresence>
@@ -400,7 +393,7 @@ export function ResultsPanel({ run, onExport }: ResultsPanelProps) {
             className="space-y-5 overflow-hidden"
           >
             <div className="glass-card p-7">
-              <h3 className="data-label mb-4">Response Time Comparison</h3>
+              <h3 className="data-label mb-4">{t('resultsPanel.responseTimeComparison')}</h3>
               <div className="h-56">
                 <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                   <BarChart data={responseTimeData} barGap={8}>
@@ -412,7 +405,7 @@ export function ResultsPanel({ run, onExport }: ResultsPanelProps) {
                       wrapperClassName="font-mono"
                       formatter={(value) => [`${value}ms`, '']}
                     />
-                    <Bar dataKey="avg" name="Average" radius={[4, 4, 0, 0]}>
+                    <Bar dataKey="avg" name={t('resultsPanel.average')} radius={[4, 4, 0, 0]}>
                       {responseTimeData.map((entry) => (
                         <Cell key={entry.provider} fill={getProviderColor(entry.provider)} fillOpacity={0.7} />
                       ))}
@@ -428,7 +421,7 @@ export function ResultsPanel({ run, onExport }: ResultsPanelProps) {
             </div>
 
             <div className="glass-card p-7">
-              <h3 className="data-label mb-4">Throughput Comparison (Tokens/Second)</h3>
+              <h3 className="data-label mb-4">{t('resultsPanel.throughputComparison')}</h3>
               <div className="h-56">
                 <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                   <BarChart data={throughputData} barGap={8}>
@@ -438,7 +431,10 @@ export function ResultsPanel({ run, onExport }: ResultsPanelProps) {
                     <RechartsTooltip
                       contentStyle={tooltipStyle}
                       wrapperClassName="font-mono"
-                      formatter={(value, name) => [`${value} tok/s`, name === 'value' ? 'Per Request' : 'System']}
+                      formatter={(value, name) => [
+                        `${value} tok/s`,
+                        name === 'value' ? t('resultsPanel.perRequest') : t('resultsPanel.system'),
+                      ]}
                     />
                     <Bar dataKey="value" name="value" radius={[4, 4, 0, 0]}>
                       {throughputData.map((entry) => (
@@ -455,10 +451,10 @@ export function ResultsPanel({ run, onExport }: ResultsPanelProps) {
               </div>
               <div className="flex items-center justify-center gap-6 mt-3 text-[11px] text-text-secondary font-mono">
                 <span className="flex items-center gap-1.5">
-                  <span className="inline-block w-3 h-3 rounded bg-white/60" /> Per Request
+                  <span className="inline-block w-3 h-3 rounded bg-white/60" /> {t('resultsPanel.perRequest')}
                 </span>
                 <span className="flex items-center gap-1.5">
-                  <span className="inline-block w-3 h-3 rounded bg-white/25" /> System
+                  <span className="inline-block w-3 h-3 rounded bg-white/25" /> {t('resultsPanel.system')}
                 </span>
               </div>
             </div>
@@ -469,7 +465,7 @@ export function ResultsPanel({ run, onExport }: ResultsPanelProps) {
       {/* Error Breakdown */}
       {providers.some((p) => run.results[p].summary.errorCount > 0) && (
         <div className="glass-card p-7">
-          <h3 className="data-label mb-4">Error Breakdown</h3>
+          <h3 className="data-label mb-4">{t('resultsPanel.errorBreakdown')}</h3>
           <div className="space-y-3">
             {providers
               .filter((p) => run.results[p].summary.errorCount > 0)
@@ -477,11 +473,11 @@ export function ResultsPanel({ run, onExport }: ResultsPanelProps) {
                 const breakdown = run.results[p].summary.errorBreakdown;
                 if (!breakdown) return null;
                 const categories: { key: ErrorCategory; label: string; color: string }[] = [
-                  { key: 'timeout', label: 'Timeout', color: '#ef4444' },
-                  { key: 'rate_limit', label: 'Rate Limit', color: '#ffb224' },
-                  { key: 'api_error', label: 'API Error', color: '#ff6b35' },
-                  { key: 'network', label: 'Network', color: '#a78bfa' },
-                  { key: 'unknown', label: 'Unknown', color: '#6b7a8d' },
+                  { key: 'timeout', label: t('resultsPanel.errorTimeout'), color: '#ef4444' },
+                  { key: 'rate_limit', label: t('resultsPanel.errorRateLimit'), color: '#ffb224' },
+                  { key: 'api_error', label: t('resultsPanel.errorApiError'), color: '#ff6b35' },
+                  { key: 'network', label: t('resultsPanel.errorNetwork'), color: '#a78bfa' },
+                  { key: 'unknown', label: t('resultsPanel.errorUnknown'), color: '#6b7a8d' },
                 ];
                 return (
                   <div key={p} className="flex items-center gap-3">

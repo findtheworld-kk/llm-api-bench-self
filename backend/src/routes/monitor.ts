@@ -40,6 +40,15 @@ router.put('/config', validate(MonitorConfigSchema), (req: Request, res: Respons
   const updated: MonitorGlobalConfig = {
     defaultIntervalMinutes: interval,
     healthThresholds: ht,
+    alertWebhookUrl: typeof body.alertWebhookUrl === 'string' ? body.alertWebhookUrl : current.alertWebhookUrl || '',
+    alertReminderMinutes:
+      typeof body.alertReminderMinutes === 'number'
+        ? Math.max(5, Math.min(1440, body.alertReminderMinutes))
+        : current.alertReminderMinutes,
+    alertWebhookSecret:
+      typeof body.alertWebhookSecret === 'string' ? body.alertWebhookSecret : current.alertWebhookSecret || '',
+    alertLanguage:
+      body.alertLanguage === 'zh' || body.alertLanguage === 'en' ? body.alertLanguage : current.alertLanguage || 'en',
   };
   monitorConfigStore.setConfig(updated);
   res.json({ success: true, config: monitorConfigStore.getConfig() });
