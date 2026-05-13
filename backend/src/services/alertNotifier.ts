@@ -20,9 +20,13 @@ interface PendingConfirmation {
   metrics: AlertMetrics;
   type: AlertType;
   scheduledAt: number; // when to re-check (ms timestamp)
+  attempt: number; // current attempt number (1-based)
+  maxAttempts: number; // total confirmation attempts required
+  delayMs: number; // delay between attempts in ms
 }
 
-const CONFIRM_DELAY_MS = 60 * 1000; // 1 minute
+const DEFAULT_CONFIRM_DELAY_MS = 60 * 1000; // 1 minute (fallback)
+const DEFAULT_CONFIRM_COUNT = 5; // fallback
 
 // In-memory queue of targets awaiting confirmation
 const pendingConfirmations = new Map<string, PendingConfirmation>(); // key: "providerId::modelName"
@@ -50,7 +54,7 @@ function shouldSendAlert(
 
   if (!previousStatus) return null;
 
-  const wasDown = previousStatus === 'down';
+  const wasDown = previousStatus === 'down' || previousStatus === 'very_slow';
   const isDown = currentStatus === 'down' || currentStatus === 'very_slow';
 
   if (wasDown && !isDown) {
@@ -178,10 +182,16 @@ async function sendFeishuAlert(
 /** Re-probe a single target to confirm its status */
 async function confirmProbe(target: MonitorTarget): Promise<{ status: HealthStatus; metrics: AlertMetrics } | null> {
   const provider = providerStore.get(target.providerId);
-  if (!provider) return null;
+  if (!provider) {
+    console.warn(`[Alert] confirmProbe: provider not found for ${target.providerId}`);
+    return null;
+  }
 
   const apiKey = providerStore.getDecryptedApiKey(target.providerId);
-  if (!apiKey) return null;
+  if (!apiKey) {
+    console.warn(`[Alert] confirmProbe: API key not found for ${target.providerId}`);
+    return null;
+  }
 
   try {
     const result = await testProviderConnection({
@@ -228,10 +238,22 @@ async function confirmProbe(target: MonitorTarget): Promise<{ status: HealthStat
 
     return { status: healthStatus, metrics };
   } catch (err: any) {
-    return {
-      status: 'down' as HealthStatus,
-      metrics: { latencyMs: 0, ttftMs: 0, outputTokens: 0, errorMessage: err.message },
-    };
+    const metrics: AlertMetrics = { latencyMs: 0, ttftMs: 0, outputTokens: 0, errorMessage: err.message };
+    // Record the error ping (same as probeTarget does)
+    monitorStore.insertPing({
+      providerId: target.providerId,
+      providerName: target.providerName,
+      modelName: target.modelName,
+      status: 'error',
+      healthStatus: 'down',
+      latencyMs: 0,
+      ttftMs: 0,
+      outputTokens: 0,
+      responseText: undefined,
+      errorMessage: err.message,
+      checkedAt: new Date().toISOString(),
+    });
+    return { status: 'down' as HealthStatus, metrics };
   }
 }
 
@@ -250,28 +272,50 @@ export async function processPendingConfirmations(): Promise<void> {
 
   for (const pending of ready) {
     const confirmed = await confirmProbe(pending.target);
-    if (!confirmed) continue;
+    if (!confirmed) {
+      // Probe failed entirely — re-queue for retry
+      const key = `${pending.target.providerId}::${pending.target.modelName}`;
+      pendingConfirmations.set(key, {
+        ...pending,
+        scheduledAt: Date.now() + pending.delayMs,
+      });
+      continue;
+    }
 
     const isStillDown = confirmed.status === 'down' || confirmed.status === 'very_slow';
     if (isStillDown) {
-      // Confirmed — send the alert
-      const config = monitorConfigStore.getConfig();
-      try {
-        await sendFeishuAlert(
-          config.alertWebhookUrl!,
-          config.alertWebhookSecret || undefined,
-          (config.alertLanguage as 'en' | 'zh') || 'en',
-          pending.type,
-          pending.target,
-          confirmed.metrics,
+      if (pending.attempt < pending.maxAttempts) {
+        // Not yet reached required count — schedule next confirmation
+        const key = `${pending.target.providerId}::${pending.target.modelName}`;
+        pendingConfirmations.set(key, {
+          ...pending,
+          metrics: confirmed.metrics,
+          attempt: pending.attempt + 1,
+          scheduledAt: Date.now() + pending.delayMs,
+        });
+        console.log(
+          `[Alert] Confirmation ${pending.attempt}/${pending.maxAttempts} failed for ${pending.target.providerId}/${pending.target.modelName}, scheduling next check`,
         );
-        monitorConfigStore.updateLastAlertAt(pending.target.providerId, pending.target.modelName);
-      } catch (err) {
-        console.error('[Alert] Failed to send confirmed notification:', err);
+      } else {
+        // All confirmation attempts failed — send the alert
+        const config = monitorConfigStore.getConfig();
+        try {
+          await sendFeishuAlert(
+            config.alertWebhookUrl!,
+            config.alertWebhookSecret || undefined,
+            (config.alertLanguage as 'en' | 'zh') || 'en',
+            pending.type,
+            pending.target,
+            confirmed.metrics,
+          );
+          monitorConfigStore.updateLastAlertAt(pending.target.providerId, pending.target.modelName);
+        } catch (err) {
+          console.error('[Alert] Failed to send confirmed notification:', err);
+        }
       }
     } else {
       console.log(
-        `[Alert] Confirmation check passed for ${pending.target.providerId}/${pending.target.modelName}, skipping alert`,
+        `[Alert] Confirmation check passed for ${pending.target.providerId}/${pending.target.modelName} at attempt ${pending.attempt}/${pending.maxAttempts}, skipping alert`,
       );
     }
   }
@@ -311,7 +355,9 @@ export async function processAlert(
     return;
   }
 
-  // Down/reminder: queue for confirmation in 1 minute
+  // Down/reminder: queue for confirmation
+  const confirmCount = config.alertConfirmCount ?? DEFAULT_CONFIRM_COUNT;
+  const confirmDelayMs = (config.alertConfirmDelayMinutes ?? 1) * 60 * 1000;
   const key = `${target.providerId}::${target.modelName}`;
   if (pendingConfirmations.has(key)) return; // already pending
 
@@ -319,9 +365,12 @@ export async function processAlert(
     target,
     metrics,
     type: decision.type,
-    scheduledAt: Date.now() + CONFIRM_DELAY_MS,
+    scheduledAt: Date.now() + confirmDelayMs,
+    attempt: 1,
+    maxAttempts: confirmCount,
+    delayMs: confirmDelayMs,
   });
   console.log(
-    `[Alert] Queued confirmation check for ${target.providerId}/${target.modelName} in ${CONFIRM_DELAY_MS / 1000}s`,
+    `[Alert] Queued confirmation check for ${target.providerId}/${target.modelName} (${confirmCount}x, interval ${confirmDelayMs / 1000}s)`,
   );
 }

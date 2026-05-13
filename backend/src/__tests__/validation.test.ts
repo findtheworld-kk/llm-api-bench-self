@@ -295,6 +295,46 @@ describe('Validation Schemas', () => {
       });
       expect(result.success).toBe(false);
     });
+
+    it('should accept alertConfirmCount in 1..20', () => {
+      const result = MonitorConfigSchema.safeParse({
+        defaultIntervalMinutes: 10,
+        healthThresholds: { tpsSlowThreshold: 20, tpsVerySlowThreshold: 5, ttftSlowMs: 1000, minOutputTokens: 1 },
+        alertConfirmCount: 5,
+        alertConfirmDelayMinutes: 1,
+      });
+      expect(result.success).toBe(true);
+    });
+
+    it('should reject alertConfirmCount out of range', () => {
+      const tooLow = MonitorConfigSchema.safeParse({
+        defaultIntervalMinutes: 10,
+        healthThresholds: { tpsSlowThreshold: 20, tpsVerySlowThreshold: 5, ttftSlowMs: 1000, minOutputTokens: 1 },
+        alertConfirmCount: 0,
+      });
+      const tooHigh = MonitorConfigSchema.safeParse({
+        defaultIntervalMinutes: 10,
+        healthThresholds: { tpsSlowThreshold: 20, tpsVerySlowThreshold: 5, ttftSlowMs: 1000, minOutputTokens: 1 },
+        alertConfirmCount: 21,
+      });
+      expect(tooLow.success).toBe(false);
+      expect(tooHigh.success).toBe(false);
+    });
+
+    it('should reject alertConfirmDelayMinutes out of range', () => {
+      const tooLow = MonitorConfigSchema.safeParse({
+        defaultIntervalMinutes: 10,
+        healthThresholds: { tpsSlowThreshold: 20, tpsVerySlowThreshold: 5, ttftSlowMs: 1000, minOutputTokens: 1 },
+        alertConfirmDelayMinutes: 0,
+      });
+      const tooHigh = MonitorConfigSchema.safeParse({
+        defaultIntervalMinutes: 10,
+        healthThresholds: { tpsSlowThreshold: 20, tpsVerySlowThreshold: 5, ttftSlowMs: 1000, minOutputTokens: 1 },
+        alertConfirmDelayMinutes: 61,
+      });
+      expect(tooLow.success).toBe(false);
+      expect(tooHigh.success).toBe(false);
+    });
   });
 
   describe('MonitorTargetSchema', () => {

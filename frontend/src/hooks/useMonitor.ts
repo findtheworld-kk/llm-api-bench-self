@@ -39,6 +39,8 @@ export interface MonitorGlobalConfig {
   alertReminderMinutes?: number;
   alertWebhookSecret?: string;
   alertLanguage?: string;
+  alertConfirmCount?: number; // how many consecutive failures before alerting (default 5)
+  alertConfirmDelayMinutes?: number; // delay between each confirmation check in minutes (default 1)
 }
 
 export function useMonitor() {

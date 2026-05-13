@@ -49,6 +49,14 @@ router.put('/config', validate(MonitorConfigSchema), (req: Request, res: Respons
       typeof body.alertWebhookSecret === 'string' ? body.alertWebhookSecret : current.alertWebhookSecret || '',
     alertLanguage:
       body.alertLanguage === 'zh' || body.alertLanguage === 'en' ? body.alertLanguage : current.alertLanguage || 'en',
+    alertConfirmCount:
+      typeof body.alertConfirmCount === 'number'
+        ? Math.max(1, Math.min(20, Math.round(body.alertConfirmCount)))
+        : current.alertConfirmCount,
+    alertConfirmDelayMinutes:
+      typeof body.alertConfirmDelayMinutes === 'number'
+        ? Math.max(1, Math.min(60, Math.round(body.alertConfirmDelayMinutes)))
+        : current.alertConfirmDelayMinutes,
   };
   monitorConfigStore.setConfig(updated);
   res.json({ success: true, config: monitorConfigStore.getConfig() });

@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [2.14.0] - 2026-05-13
+
+### Added
+- Configurable alert confirmation: number of consecutive failures (default 5, range 1-20) and delay between checks (default 1 min, range 1-60) before sending alerts, replacing the previous fixed single 1-minute re-check
+- Monitor settings UI exposes confirm count and confirm delay alongside language and reminder interval
+
+### Fixed
+- Alert reminder interval ignored: every save of monitor settings was wiping `last_alert_at` because `setTargets`/`addTarget` rebuilt the row without preserving the column, so reminders fired roughly every probe interval instead of every 6 hours
+- Down/very_slow status oscillation triggered spurious "new failure" alerts instead of reminders; `wasDown` now treats both as the same down state
+- Backend dev watcher missed source edits made by atomic-replace writes (inode changes); switched from `tsx watch` to `nodemon --legacy-watch` polling
+- Frontend dev watcher hardened with `usePolling` for parity
+- PUT `/api/monitor/config` silently dropped `alertConfirmCount` and `alertConfirmDelayMinutes` from the request body, so UI changes were not persisted
+- Alert confirmation probe now records a ping on error (previously failed probes left no DB trace) and re-queues on transient failures instead of silently dropping the confirmation
+
 ## [2.13.1] - 2026-05-11
 
 ### Changed

@@ -320,6 +320,8 @@ export function MonitorPage() {
   const [draftWebhookSecret, setDraftWebhookSecret] = useState(globalConfig.alertWebhookSecret || '');
   const [draftAlertLanguage, setDraftAlertLanguage] = useState(globalConfig.alertLanguage || 'en');
   const [draftReminderMinutes, setDraftReminderMinutes] = useState(globalConfig.alertReminderMinutes ?? 360);
+  const [draftConfirmCount, setDraftConfirmCount] = useState(globalConfig.alertConfirmCount ?? 5);
+  const [draftConfirmDelay, setDraftConfirmDelay] = useState(globalConfig.alertConfirmDelayMinutes ?? 1);
   const [configDirty, setConfigDirty] = useState(false);
   const [expandedModels, setExpandedModels] = useState<Set<string>>(new Set());
 
@@ -345,6 +347,8 @@ export function MonitorPage() {
     setDraftWebhookSecret(globalConfig.alertWebhookSecret || '');
     setDraftAlertLanguage(globalConfig.alertLanguage || 'en');
     setDraftReminderMinutes(globalConfig.alertReminderMinutes ?? 360);
+    setDraftConfirmCount(globalConfig.alertConfirmCount ?? 5);
+    setDraftConfirmDelay(globalConfig.alertConfirmDelayMinutes ?? 1);
   }, [globalConfig]);
 
   useEffect(() => {
@@ -364,6 +368,8 @@ export function MonitorPage() {
     const secretChanged = draftWebhookSecret !== (globalConfig.alertWebhookSecret || '');
     const langChanged = draftAlertLanguage !== (globalConfig.alertLanguage || 'en');
     const reminderChanged = draftReminderMinutes !== (globalConfig.alertReminderMinutes ?? 360);
+    const confirmCountChanged = draftConfirmCount !== (globalConfig.alertConfirmCount ?? 5);
+    const confirmDelayChanged = draftConfirmDelay !== (globalConfig.alertConfirmDelayMinutes ?? 1);
     setConfigDirty(
       intervalChanged ||
         thresholdsChanged ||
@@ -371,7 +377,9 @@ export function MonitorPage() {
         webhookChanged ||
         secretChanged ||
         langChanged ||
-        reminderChanged,
+        reminderChanged ||
+        confirmCountChanged ||
+        confirmDelayChanged,
     );
   }, [
     draftInterval,
@@ -381,6 +389,8 @@ export function MonitorPage() {
     draftWebhookSecret,
     draftAlertLanguage,
     draftReminderMinutes,
+    draftConfirmCount,
+    draftConfirmDelay,
     globalConfig,
     targets,
   ]);
@@ -399,6 +409,8 @@ export function MonitorPage() {
       alertReminderMinutes: draftReminderMinutes,
       alertWebhookSecret: draftWebhookSecret,
       alertLanguage: draftAlertLanguage,
+      alertConfirmCount: draftConfirmCount,
+      alertConfirmDelayMinutes: draftConfirmDelay,
     });
     try {
       await saveTargets(draftTargets);
@@ -752,6 +764,44 @@ export function MonitorPage() {
                       { label: '6h', value: 360 },
                       { label: '12h', value: 720 },
                       { label: '24h', value: 1440 },
+                    ]}
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <label className="text-[11px] text-text-secondary">{t('monitor.alertConfirmCount')}</label>
+                  <Select
+                    size="small"
+                    value={draftConfirmCount}
+                    onChange={(v) => {
+                      setDraftConfirmCount(v);
+                      setConfigDirty(true);
+                    }}
+                    style={{ width: 80 }}
+                    options={[
+                      { label: '1', value: 1 },
+                      { label: '2', value: 2 },
+                      { label: '3', value: 3 },
+                      { label: '5', value: 5 },
+                      { label: '10', value: 10 },
+                    ]}
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <label className="text-[11px] text-text-secondary">{t('monitor.alertConfirmDelay')}</label>
+                  <Select
+                    size="small"
+                    value={draftConfirmDelay}
+                    onChange={(v) => {
+                      setDraftConfirmDelay(v);
+                      setConfigDirty(true);
+                    }}
+                    style={{ width: 100 }}
+                    options={[
+                      { label: '1 min', value: 1 },
+                      { label: '2 min', value: 2 },
+                      { label: '3 min', value: 3 },
+                      { label: '5 min', value: 5 },
+                      { label: '10 min', value: 10 },
                     ]}
                   />
                 </div>

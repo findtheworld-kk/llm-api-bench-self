@@ -48,6 +48,8 @@ export default defineConfig({
     host: '0.0.0.0',
     allowedHosts: true,
     watch: {
+      usePolling: true,
+      interval: 300,
       ignored: ['**/nohup.out'],
     },
     proxy: {

@@ -23,6 +23,8 @@ export interface MonitorGlobalConfig {
   alertReminderMinutes?: number; // default 360 (6 hours)
   alertWebhookSecret?: string;
   alertLanguage?: 'en' | 'zh';
+  alertConfirmCount?: number; // how many consecutive failures before alerting (default 5)
+  alertConfirmDelayMinutes?: number; // delay between each confirmation check (default 1)
 }
 
 const DEFAULT_CONFIG: MonitorGlobalConfig = {
@@ -37,6 +39,8 @@ const DEFAULT_CONFIG: MonitorGlobalConfig = {
   alertReminderMinutes: 360,
   alertWebhookSecret: '',
   alertLanguage: 'en',
+  alertConfirmCount: 5,
+  alertConfirmDelayMinutes: 1,
 };
 
 class MonitorConfigStore {
@@ -112,6 +116,8 @@ class MonitorConfigStore {
         alertReminderMinutes: config.alertReminderMinutes ?? DEFAULT_CONFIG.alertReminderMinutes,
         alertWebhookSecret: config.alertWebhookSecret ?? '',
         alertLanguage: config.alertLanguage ?? 'en',
+        alertConfirmCount: config.alertConfirmCount ?? DEFAULT_CONFIG.alertConfirmCount,
+        alertConfirmDelayMinutes: config.alertConfirmDelayMinutes ?? DEFAULT_CONFIG.alertConfirmDelayMinutes,
       }),
     );
   }
@@ -143,21 +149,44 @@ class MonitorConfigStore {
 
   setTargets(targets: MonitorTarget[]): void {
     const tx = this.db.transaction(() => {
+      // Preserve last_alert_at across re-save by reading existing values first
+      const existing = this.db
+        .prepare('SELECT provider_id, model_name, last_alert_at FROM monitor_targets')
+        .all() as Array<{ provider_id: string; model_name: string; last_alert_at: string | null }>;
+      const lastAlertMap = new Map<string, string | null>();
+      for (const row of existing) {
+        lastAlertMap.set(`${row.provider_id}::${row.model_name}`, row.last_alert_at);
+      }
+
       this.db.prepare('DELETE FROM monitor_targets').run();
       const stmt = this.db.prepare(
-        'INSERT INTO monitor_targets (provider_id, model_name, provider_name, interval_minutes, enabled, alert_enabled) VALUES (?, ?, ?, ?, 1, ?)',
+        'INSERT INTO monitor_targets (provider_id, model_name, provider_name, interval_minutes, enabled, alert_enabled, last_alert_at) VALUES (?, ?, ?, ?, 1, ?, ?)',
       );
       for (const t of targets) {
-        stmt.run(t.providerId, t.modelName, t.providerName, t.intervalMinutes || 0, t.alertEnabled !== false ? 1 : 0);
+        const preserved = lastAlertMap.get(`${t.providerId}::${t.modelName}`) ?? null;
+        stmt.run(
+          t.providerId,
+          t.modelName,
+          t.providerName,
+          t.intervalMinutes || 0,
+          t.alertEnabled !== false ? 1 : 0,
+          preserved,
+        );
       }
     });
     tx();
   }
 
   addTarget(target: MonitorTarget): void {
+    // Preserve last_alert_at if the target already exists
+    const existing = this.db
+      .prepare('SELECT last_alert_at FROM monitor_targets WHERE provider_id = ? AND model_name = ?')
+      .get(target.providerId, target.modelName) as { last_alert_at: string | null } | undefined;
+    const preserved = existing?.last_alert_at ?? null;
+
     this.db
       .prepare(
-        'INSERT OR REPLACE INTO monitor_targets (provider_id, model_name, provider_name, interval_minutes, enabled, alert_enabled) VALUES (?, ?, ?, ?, 1, ?)',
+        'INSERT OR REPLACE INTO monitor_targets (provider_id, model_name, provider_name, interval_minutes, enabled, alert_enabled, last_alert_at) VALUES (?, ?, ?, ?, 1, ?, ?)',
       )
       .run(
         target.providerId,
@@ -165,6 +194,7 @@ class MonitorConfigStore {
         target.providerName,
         target.intervalMinutes || 0,
         target.alertEnabled !== false ? 1 : 0,
+        preserved,
       );
   }
 

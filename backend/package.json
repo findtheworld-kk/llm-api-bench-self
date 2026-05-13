@@ -1,10 +1,10 @@
 {
   "name": "llm-benchmark-backend",
-  "version": "2.12.1",
+  "version": "2.14.0",
   "description": "LLM API Bench - Backend",
   "main": "dist/index.js",
   "scripts": {
-    "dev": "tsx watch src/index.ts",
+    "dev": "nodemon --watch src --ext ts,tsx,json --legacy-watch --exec tsx src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
     "test": "vitest run",
@@ -38,6 +38,7 @@
     "@types/uuid": "^9.0.7",
     "eslint": "^10.2.0",
     "eslint-config-prettier": "^10.1.8",
+    "nodemon": "^3.1.14",
     "tsx": "^4.6.2",
     "typescript": "^5.3.2",
     "typescript-eslint": "^8.58.1",

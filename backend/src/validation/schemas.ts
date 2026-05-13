@@ -141,6 +141,8 @@ export const MonitorConfigSchema = z.object({
   alertReminderMinutes: z.number().int().min(5).max(1440).optional(),
   alertWebhookSecret: z.string().optional(),
   alertLanguage: z.enum(['en', 'zh']).optional(),
+  alertConfirmCount: z.number().int().min(1).max(20).optional(),
+  alertConfirmDelayMinutes: z.number().int().min(1).max(60).optional(),
 });
 
 export const MonitorTargetSchema = z.object({
