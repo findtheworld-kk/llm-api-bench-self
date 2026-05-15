@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [2.15.3] - 2026-05-15
+
+### Changed
+- CI workflow reverted to strict mode: tag pushes run the full `quality` job before `docker`. v2.15.2 had skipped `quality` on tag pushes to avoid duplicate CI runs, but that left a security gap — a tag pointing at an unvalidated commit (e.g. `git tag v9.9.9 some-sha` directly) could trigger a Docker push without going through type check / lint / tests. Each release now runs `quality` twice (once on branch push, once on tag push) but guarantees Docker images are only built from validated commits
+
 ## [2.15.2] - 2026-05-15
 
 ### Fixed

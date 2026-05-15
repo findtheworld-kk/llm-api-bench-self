@@ -23,5 +23,5 @@
   "scripts": {
     "prepare": "husky"
   },
-  "version": "2.15.2"
+  "version": "2.15.3"
 }
