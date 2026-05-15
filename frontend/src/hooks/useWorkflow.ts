@@ -262,6 +262,10 @@ export function useWorkflow(): UseWorkflowReturn {
   const startWorkflow = useCallback(
     async (data: CreateWorkflowData) => {
       setError(null);
+      // Show loading state immediately so the UI reflects the in-flight POST.
+      // (connectSSE also sets it true on success; setting here makes catch's
+      // setIsRunning(false) meaningful instead of a no-op for the error path.)
+      setIsRunning(true);
 
       try {
         const res = await apiFetch('/api/workflows', {
@@ -271,8 +275,8 @@ export function useWorkflow(): UseWorkflowReturn {
         });
 
         if (!res.ok) {
-          const errData = await res.json();
-          throw new Error(errData.error || 'Failed to start workflow');
+          const errData = await res.json().catch(() => ({}));
+          throw new Error((errData as { error?: string }).error || `Failed to start workflow (${res.status})`);
         }
 
         const { id } = await res.json();
@@ -302,10 +306,16 @@ export function useWorkflow(): UseWorkflowReturn {
 
   const cancelWorkflow = useCallback(
     async (id: string): Promise<boolean> => {
+      // Check res.ok before reading body. Previously a 404/400 response (e.g. "not running")
+      // would be parsed as `{error: 'x'}`, `data.success` was undefined → returned false
+      // silently with no error surfaced to the UI.
       try {
         const res = await apiFetch(`/api/workflows/${id}/cancel`, { method: 'POST' });
-        const data = await res.json();
-
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          setError((data as { error?: string }).error || `Cancel failed (${res.status})`);
+          return false;
+        }
         if (data.success) {
           if (eventSourceRef.current) {
             eventSourceRef.current.close();
@@ -316,6 +326,8 @@ export function useWorkflow(): UseWorkflowReturn {
           fetchWorkflow(id);
           return true;
         }
+        // Server returned 200 but {success:false} — surface the message
+        setError(data.message || 'Cancel did not succeed');
         return false;
       } catch {
         setError('Failed to cancel workflow');
@@ -334,7 +346,11 @@ export function useWorkflow(): UseWorkflowReturn {
     async (id: string): Promise<boolean> => {
       try {
         const res = await apiFetch(`/api/workflows/${id}`, { method: 'DELETE' });
-        const data = await res.json();
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          setError((data as { error?: string }).error || `Delete failed (${res.status})`);
+          return false;
+        }
         if (data.success) {
           fetchWorkflows();
           if (currentWorkflow?.id === id) {
@@ -342,6 +358,7 @@ export function useWorkflow(): UseWorkflowReturn {
           }
           return true;
         }
+        setError('Delete did not succeed');
         return false;
       } catch {
         setError('Failed to delete workflow');
@@ -355,11 +372,16 @@ export function useWorkflow(): UseWorkflowReturn {
     async (id: string): Promise<string | null> => {
       try {
         const res = await apiFetch(`/api/workflows/${id}/duplicate`, { method: 'POST' });
-        const data = await res.json();
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          setError((data as { error?: string }).error || `Duplicate failed (${res.status})`);
+          return null;
+        }
         if (data.id) {
           fetchWorkflows();
           return data.id;
         }
+        setError('Duplicate did not return an id');
         return null;
       } catch {
         setError('Failed to duplicate workflow');

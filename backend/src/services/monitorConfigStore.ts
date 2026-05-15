@@ -23,9 +23,15 @@ export interface MonitorGlobalConfig {
   alertReminderMinutes?: number; // default 360 (6 hours)
   alertWebhookSecret?: string;
   alertLanguage?: 'en' | 'zh';
-  alertConfirmCount?: number; // how many consecutive failures before alerting (default 5)
+  alertConfirmCount?: number; // total confirmation attempts per cycle (N), default 5
   alertConfirmDelayMinutes?: number; // delay between each confirmation check (default 1)
+  // K-of-N voting: alert fires when failCount >= threshold within N attempts.
+  // Default = max(1, N - 1) so a single transient ok no longer drops the cycle.
+  // Clamped to [1, alertConfirmCount].
+  alertConfirmFailThreshold?: number;
 }
+
+const DEFAULT_CONFIRM_COUNT = 5;
 
 const DEFAULT_CONFIG: MonitorGlobalConfig = {
   defaultIntervalMinutes: 10,
@@ -39,9 +45,19 @@ const DEFAULT_CONFIG: MonitorGlobalConfig = {
   alertReminderMinutes: 360,
   alertWebhookSecret: '',
   alertLanguage: 'en',
-  alertConfirmCount: 5,
+  alertConfirmCount: DEFAULT_CONFIRM_COUNT,
   alertConfirmDelayMinutes: 1,
+  alertConfirmFailThreshold: Math.max(1, DEFAULT_CONFIRM_COUNT - 1), // 4-of-5 by default
 };
+
+/** Clamp failThreshold into [1, confirmCount]. */
+function clampFailThreshold(value: number | undefined, confirmCount: number): number {
+  const n = Math.max(1, confirmCount);
+  if (typeof value !== 'number' || !Number.isFinite(value)) return Math.max(1, n - 1);
+  return Math.max(1, Math.min(n, Math.round(value)));
+}
+
+export { clampFailThreshold };
 
 class MonitorConfigStore {
   private db = getDb();
@@ -108,6 +124,8 @@ class MonitorConfigStore {
 
   setConfig(config: MonitorGlobalConfig): void {
     const clamped = clampInterval(config.defaultIntervalMinutes);
+    const confirmCount = config.alertConfirmCount ?? DEFAULT_CONFIG.alertConfirmCount!;
+    const failThreshold = clampFailThreshold(config.alertConfirmFailThreshold, confirmCount);
     this.db.prepare("INSERT OR REPLACE INTO monitor_config (key, value) VALUES ('global', ?)").run(
       JSON.stringify({
         defaultIntervalMinutes: clamped,
@@ -116,8 +134,9 @@ class MonitorConfigStore {
         alertReminderMinutes: config.alertReminderMinutes ?? DEFAULT_CONFIG.alertReminderMinutes,
         alertWebhookSecret: config.alertWebhookSecret ?? '',
         alertLanguage: config.alertLanguage ?? 'en',
-        alertConfirmCount: config.alertConfirmCount ?? DEFAULT_CONFIG.alertConfirmCount,
+        alertConfirmCount: confirmCount,
         alertConfirmDelayMinutes: config.alertConfirmDelayMinutes ?? DEFAULT_CONFIG.alertConfirmDelayMinutes,
+        alertConfirmFailThreshold: failThreshold,
       }),
     );
   }

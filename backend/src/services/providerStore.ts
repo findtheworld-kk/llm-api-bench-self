@@ -3,6 +3,18 @@ import { encrypt, decrypt, maskApiKey } from '../utils/encryption';
 import { getDb } from './database';
 import { v4 as uuidv4 } from 'uuid';
 
+/** Throw if two model entries share the same id or name. Exported for tests. */
+export function assertUniqueModels(models: Array<{ id: string; name: string }>): void {
+  const seenIds = new Set<string>();
+  const seenNames = new Set<string>();
+  for (const m of models) {
+    if (seenIds.has(m.id)) throw new Error(`Duplicate model id within provider: "${m.id}"`);
+    if (seenNames.has(m.name)) throw new Error(`Duplicate model name within provider: "${m.name}"`);
+    seenIds.add(m.id);
+    seenNames.add(m.name);
+  }
+}
+
 class ProviderStore {
   private providers: Map<string, ProviderConfig> = new Map();
   private db = getDb();
@@ -65,18 +77,23 @@ class ProviderStore {
 
   create(input: ProviderConfigInput): ProviderConfig {
     const now = new Date().toISOString();
+    const normalizedModels = input.models.map((m) => ({
+      ...m,
+      id: m.id || uuidv4(),
+      supportsStreaming: m.supportsStreaming ?? true,
+      isActive: m.isActive ?? true,
+    }));
+    // Bug #5 guard: enforce unique model id + name per provider. Without this,
+    // duplicate-named models collide on monitor_targets PK and cause confusing
+    // CRUD behavior downstream.
+    assertUniqueModels(normalizedModels);
     const provider: ProviderConfig = {
       id: uuidv4(),
       name: input.name,
       endpoint: input.endpoint,
       apiKey: encrypt(input.apiKey),
       format: input.format,
-      models: input.models.map((m) => ({
-        ...m,
-        id: m.id || uuidv4(),
-        supportsStreaming: m.supportsStreaming ?? true,
-        isActive: m.isActive ?? true,
-      })),
+      models: normalizedModels,
       createdAt: now,
       updatedAt: now,
     };
@@ -118,20 +135,23 @@ class ProviderStore {
     const existing = this.providers.get(id);
     if (!existing) return undefined;
 
+    const nextModels = input.models
+      ? input.models.map((m) => ({
+          ...m,
+          id: m.id || uuidv4(),
+          supportsStreaming: m.supportsStreaming ?? true,
+          isActive: m.isActive ?? true,
+        }))
+      : existing.models;
+    if (input.models) assertUniqueModels(nextModels);
+
     const updated: ProviderConfig = {
       ...existing,
       name: input.name ?? existing.name,
       endpoint: input.endpoint ?? existing.endpoint,
       apiKey: input.apiKey ? encrypt(input.apiKey) : existing.apiKey,
       format: input.format ?? existing.format,
-      models: input.models
-        ? input.models.map((m) => ({
-            ...m,
-            id: m.id || uuidv4(),
-            supportsStreaming: m.supportsStreaming ?? true,
-            isActive: m.isActive ?? true,
-          }))
-        : existing.models,
+      models: nextModels,
       updatedAt: new Date().toISOString(),
     };
 

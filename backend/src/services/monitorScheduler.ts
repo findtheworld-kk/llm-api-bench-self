@@ -5,8 +5,14 @@ import { testProviderConnection } from '../providers/adapter';
 import { monitorStore, HealthStatus } from './monitorStore';
 import { processAlert, processPendingConfirmations } from './alertNotifier';
 
-function classifyHealth(status: string, latencyMs: number, ttftMs: number, outputTokens: number): HealthStatus {
-  const thresholds = monitorConfigStore.getConfig().healthThresholds;
+/** Pure health classification. Exported for tests; production callers go through `classifyHealth`. */
+export function classifyHealthWithThresholds(
+  status: string,
+  latencyMs: number,
+  ttftMs: number,
+  outputTokens: number,
+  thresholds: { tpsSlowThreshold: number; tpsVerySlowThreshold: number; ttftSlowMs: number; minOutputTokens: number },
+): HealthStatus {
   if (status === 'error' || status === 'timeout') return 'down';
   // Only enforce minOutputTokens when streaming provides real token counts.
   // Non-streaming checks may report outputTokens=0 with a valid response.
@@ -17,6 +23,16 @@ function classifyHealth(status: string, latencyMs: number, ttftMs: number, outpu
   if (tps > 0 && tps < thresholds.tpsSlowThreshold) return 'slow';
   if (ttftMs >= thresholds.ttftSlowMs) return 'slow';
   return 'healthy';
+}
+
+function classifyHealth(status: string, latencyMs: number, ttftMs: number, outputTokens: number): HealthStatus {
+  return classifyHealthWithThresholds(
+    status,
+    latencyMs,
+    ttftMs,
+    outputTokens,
+    monitorConfigStore.getConfig().healthThresholds,
+  );
 }
 
 let scheduledTask: ScheduledTask | null = null;

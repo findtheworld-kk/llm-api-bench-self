@@ -4,6 +4,32 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [2.15.0] - 2026-05-15
+
+### Changed
+- **Alert confirmation now uses K-of-N voting** instead of "N consecutive failures or one ok abandons cycle". A new `alertConfirmFailThreshold` setting (default `N - 1`, e.g. 4-of-5) controls how many of the N attempts must fail to fire an alert. A single transient ok no longer drops the entire confirmation chain — fixes the case where a flaky upstream that returns one healthy response between failures suppressed real outage alerts for 30+ minutes
+- Confirmation cycles now exit early on both directions: alert fires the moment failCount reaches the threshold (no longer waits for the full N attempts), and the cycle abandons the moment failThreshold becomes mathematically unreachable
+- Health-check probe timeout reduced from 180 s (streaming) / 120 s (non-streaming) to 90 s for monitor probes and the "Test Connection" endpoint. Playground/benchmark calls retain their longer timeouts
+- Confirmation probes within the same provider now run in parallel (independent API calls). Previously serialized — a single hung confirmation could delay every other model's confirmation in the same minute
+
+### Fixed
+- **Race in confirmation queue**: between `pendingConfirmations.delete(key)` and the re-add after `await confirmProbe`, the dedup gate `has(key)` returned false, allowing a scheduled probe landing in that 60-180 s window to spawn a duplicate parallel confirmation cycle. Added an `inFlight` token map so the gate covers the await window, and any cycle whose token is overwritten/cleared mid-await drops its result
+- **Recovery alert no longer leaves a zombie down cycle in flight**: when a scheduled probe sees `healthy/slow` after `down`, the recovery alert now explicitly cancels any pending or in-flight confirmation for that target, preventing a delayed redundant down alert
+- **Webhook delivery failures now retry instead of silently consuming the alert** (bug #4): when the Feishu webhook returns non-2xx, `sendFeishuAlert` throws instead of just logging. The fire path catches the throw and re-queues the confirmation cycle rather than recording `lastAlertAt` — previously a failed delivery still recorded the alert, suppressing all retries for 6 hours
+- **`useMonitor.saveConfig` no longer "phantom-saves"** (bug #8): UI no longer mirrors the new config into local state on non-2xx responses. Returns `boolean` so callers can detect failures
+- **`usePlaygroundHistory` no longer "phantom-deletes"** (bug #2): `deleteEntry` and `clearAll` now check `res.ok` before mutating local state — failed server deletions no longer hide items locally
+- **`useWorkflow` mutations surface server errors** (bug #1): `cancelWorkflow` / `deleteWorkflow` / `duplicateWorkflow` now check `res.ok` and propagate the server's error message into `state.error` instead of silently returning false/null
+- **`useBenchmark` rejects malformed responses** (bug #3): `fetchBenchmarks` validates that the body is an array, `fetchBenchmark` validates it's a plain object. Non-2xx and shape mismatches set an error rather than polluting React state with `{error:'…'}` placeholders
+- **`PUT /api/monitor/targets` now accepts an empty array** (bug #7): `MonitorTargetsArraySchema` dropped `.min(1)`, letting users clear the monitor list entirely
+- **`startWorkflow` correctly toggles `isRunning`** (bug #6): set `true` at the start of the try-block so the catch-branch's `setIsRunning(false)` is no longer a no-op
+- **`providerStore.create` / `update` reject duplicate model id/name within a provider** (bug #5): collisions previously corrupted monitor target tracking. Routes return 400 with the conflict message
+
+### Added
+- New monitor config field `alertConfirmFailThreshold` (range 1-20, clamped to `[1, alertConfirmCount]` server-side)
+- Settings UI exposes the K threshold as a `K / N` selector that auto-adjusts options when N changes
+- Comprehensive test coverage expansion: 906 total tests (712 backend + 194 frontend) covering alert state coordination, K-of-N decision math, multi-provider streaming token fields, route HTTP semantics via supertest, store CRUD with sqlite migrations, and full executeWorkflow integration with real benchmarkEngine
+- "Writing tests" discipline section in `CLAUDE.md` capturing the lesson from the May 2026 reverse-review: 8 bugs were silently rationalized by tests that matched current behavior instead of expected behavior
+
 ## [2.14.0] - 2026-05-13
 
 ### Added

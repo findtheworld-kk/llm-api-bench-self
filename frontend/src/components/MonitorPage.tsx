@@ -322,6 +322,9 @@ export function MonitorPage() {
   const [draftReminderMinutes, setDraftReminderMinutes] = useState(globalConfig.alertReminderMinutes ?? 360);
   const [draftConfirmCount, setDraftConfirmCount] = useState(globalConfig.alertConfirmCount ?? 5);
   const [draftConfirmDelay, setDraftConfirmDelay] = useState(globalConfig.alertConfirmDelayMinutes ?? 1);
+  const [draftFailThreshold, setDraftFailThreshold] = useState(
+    globalConfig.alertConfirmFailThreshold ?? Math.max(1, (globalConfig.alertConfirmCount ?? 5) - 1),
+  );
   const [configDirty, setConfigDirty] = useState(false);
   const [expandedModels, setExpandedModels] = useState<Set<string>>(new Set());
 
@@ -349,6 +352,9 @@ export function MonitorPage() {
     setDraftReminderMinutes(globalConfig.alertReminderMinutes ?? 360);
     setDraftConfirmCount(globalConfig.alertConfirmCount ?? 5);
     setDraftConfirmDelay(globalConfig.alertConfirmDelayMinutes ?? 1);
+    setDraftFailThreshold(
+      globalConfig.alertConfirmFailThreshold ?? Math.max(1, (globalConfig.alertConfirmCount ?? 5) - 1),
+    );
   }, [globalConfig]);
 
   useEffect(() => {
@@ -370,6 +376,9 @@ export function MonitorPage() {
     const reminderChanged = draftReminderMinutes !== (globalConfig.alertReminderMinutes ?? 360);
     const confirmCountChanged = draftConfirmCount !== (globalConfig.alertConfirmCount ?? 5);
     const confirmDelayChanged = draftConfirmDelay !== (globalConfig.alertConfirmDelayMinutes ?? 1);
+    const failThresholdChanged =
+      draftFailThreshold !==
+      (globalConfig.alertConfirmFailThreshold ?? Math.max(1, (globalConfig.alertConfirmCount ?? 5) - 1));
     setConfigDirty(
       intervalChanged ||
         thresholdsChanged ||
@@ -379,7 +388,8 @@ export function MonitorPage() {
         langChanged ||
         reminderChanged ||
         confirmCountChanged ||
-        confirmDelayChanged,
+        confirmDelayChanged ||
+        failThresholdChanged,
     );
   }, [
     draftInterval,
@@ -391,6 +401,7 @@ export function MonitorPage() {
     draftReminderMinutes,
     draftConfirmCount,
     draftConfirmDelay,
+    draftFailThreshold,
     globalConfig,
     targets,
   ]);
@@ -411,6 +422,7 @@ export function MonitorPage() {
       alertLanguage: draftAlertLanguage,
       alertConfirmCount: draftConfirmCount,
       alertConfirmDelayMinutes: draftConfirmDelay,
+      alertConfirmFailThreshold: Math.max(1, Math.min(draftConfirmCount, draftFailThreshold)),
     });
     try {
       await saveTargets(draftTargets);
@@ -612,7 +624,7 @@ export function MonitorPage() {
         onOk={handleSaveAll}
         okText={t('common.action.save')}
         okButtonProps={{ disabled: !configDirty }}
-        width={780}
+        width={960}
         destroyOnHidden
       >
         <div className="space-y-4 py-2">
@@ -731,9 +743,11 @@ export function MonitorPage() {
                   }}
                 />
               </div>
-              <div className="flex items-center gap-4">
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
                 <div className="flex items-center gap-2">
-                  <label className="text-[11px] text-text-secondary">{t('monitor.alertLanguage')}</label>
+                  <label className="text-[11px] text-text-secondary whitespace-nowrap">
+                    {t('monitor.alertLanguage')}
+                  </label>
                   <Select
                     size="small"
                     value={draftAlertLanguage}
@@ -741,7 +755,7 @@ export function MonitorPage() {
                       setDraftAlertLanguage(v);
                       setConfigDirty(true);
                     }}
-                    style={{ width: 100 }}
+                    style={{ width: 90 }}
                     options={[
                       { label: 'English', value: 'en' },
                       { label: '中文', value: 'zh' },
@@ -749,7 +763,9 @@ export function MonitorPage() {
                   />
                 </div>
                 <div className="flex items-center gap-2">
-                  <label className="text-[11px] text-text-secondary">{t('monitor.reminderInterval')}</label>
+                  <label className="text-[11px] text-text-secondary whitespace-nowrap">
+                    {t('monitor.reminderInterval')}
+                  </label>
                   <Select
                     size="small"
                     value={draftReminderMinutes}
@@ -757,7 +773,7 @@ export function MonitorPage() {
                       setDraftReminderMinutes(v);
                       setConfigDirty(true);
                     }}
-                    style={{ width: 120 }}
+                    style={{ width: 80 }}
                     options={[
                       { label: '1h', value: 60 },
                       { label: '3h', value: 180 },
@@ -768,26 +784,50 @@ export function MonitorPage() {
                   />
                 </div>
                 <div className="flex items-center gap-2">
-                  <label className="text-[11px] text-text-secondary">{t('monitor.alertConfirmCount')}</label>
+                  <label className="text-[11px] text-text-secondary whitespace-nowrap">
+                    {t('monitor.alertConfirmCount')}
+                  </label>
                   <Select
                     size="small"
-                    value={draftConfirmCount}
+                    value={Math.min(draftConfirmCount, 5)}
                     onChange={(v) => {
                       setDraftConfirmCount(v);
+                      // keep failThreshold within [1, new confirmCount]
+                      if (draftFailThreshold > v) setDraftFailThreshold(v);
                       setConfigDirty(true);
                     }}
-                    style={{ width: 80 }}
+                    style={{ width: 70 }}
                     options={[
                       { label: '1', value: 1 },
                       { label: '2', value: 2 },
                       { label: '3', value: 3 },
+                      { label: '4', value: 4 },
                       { label: '5', value: 5 },
-                      { label: '10', value: 10 },
                     ]}
                   />
                 </div>
                 <div className="flex items-center gap-2">
-                  <label className="text-[11px] text-text-secondary">{t('monitor.alertConfirmDelay')}</label>
+                  <label className="text-[11px] text-text-secondary whitespace-nowrap">
+                    {t('monitor.alertConfirmFailThreshold')}
+                  </label>
+                  <Select
+                    size="small"
+                    value={Math.min(draftFailThreshold, draftConfirmCount)}
+                    onChange={(v) => {
+                      setDraftFailThreshold(v);
+                      setConfigDirty(true);
+                    }}
+                    style={{ width: 80 }}
+                    options={Array.from({ length: draftConfirmCount }, (_, i) => i + 1).map((k) => ({
+                      label: `${k} / ${draftConfirmCount}`,
+                      value: k,
+                    }))}
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <label className="text-[11px] text-text-secondary whitespace-nowrap">
+                    {t('monitor.alertConfirmDelay')}
+                  </label>
                   <Select
                     size="small"
                     value={draftConfirmDelay}
@@ -795,7 +835,7 @@ export function MonitorPage() {
                       setDraftConfirmDelay(v);
                       setConfigDirty(true);
                     }}
-                    style={{ width: 100 }}
+                    style={{ width: 90 }}
                     options={[
                       { label: '1 min', value: 1 },
                       { label: '2 min', value: 2 },
@@ -835,7 +875,7 @@ export function MonitorPage() {
                         <Tag style={{ fontSize: 10, margin: 0 }}>{provider.format}</Tag>
                       </label>
                     </div>
-                    <div className="flex flex-wrap gap-2 ml-6">
+                    <div className="flex flex-wrap gap-x-8 gap-y-5 ml-6">
                       {activeModels.map((m: any) => {
                         const key = `${provider.id}::${m.name}`;
                         const checked = draftTargetKeys.has(key);
@@ -843,7 +883,7 @@ export function MonitorPage() {
                           (t) => t.providerId === provider.id && t.modelName === m.name,
                         );
                         return (
-                          <div key={m.name} className="flex items-center gap-1.5">
+                          <div key={m.name} className="flex items-center gap-2">
                             <label className="flex items-center gap-1.5 cursor-pointer">
                               <Checkbox
                                 checked={checked}

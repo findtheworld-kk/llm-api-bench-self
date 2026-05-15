@@ -61,7 +61,7 @@ const activeListeners: Map<string, Set<EventCallback>> = new Map();
 const cancelledRuns: Set<string> = new Set();
 
 // ── Token Bucket (per-benchmark, lazy-refill) ────────────────────────────────
-class TokenBucket {
+export class TokenBucket {
   private tokens: number;
   private lastRefill: number;
   private readonly intervalMs: number;
@@ -149,14 +149,14 @@ function emit(benchmarkId: string, event: SSEEvent): void {
   }
 }
 
-function calculatePercentile(values: number[], percentile: number): number {
+export function calculatePercentile(values: number[], percentile: number): number {
   const sorted = [...values].sort((a, b) => a - b);
   const index = Math.ceil((percentile / 100) * sorted.length) - 1;
   return sorted[Math.max(0, index)];
 }
 
 // Classify errors into categories for better analysis
-function classifyError(error: unknown): ErrorCategory {
+export function classifyError(error: unknown): ErrorCategory {
   const message = error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
 
   if (message.includes('timeout') || message.includes('aborted') || message.includes('timed out')) {
@@ -202,7 +202,7 @@ function sleep(ms: number, benchmarkId: string): Promise<void> {
 // [128 chars, 4096 chars] (~32–1024 tokens). Uses base62 characters with
 // spaces every 4-6 chars to form realistic token boundaries.
 const BASE62 = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-function generateRandomPrefix(promptLength: number): string {
+export function generateRandomPrefix(promptLength: number): string {
   const targetChars = Math.min(4096, Math.max(128, Math.round(promptLength * 0.05)));
   const bytes = randomBytes(targetChars);
   let result = '';
@@ -214,7 +214,7 @@ function generateRandomPrefix(promptLength: number): string {
 }
 
 // Exponential backoff retry
-async function executeWithRetry(
+export async function executeWithRetry(
   provider: LLMProvider,
   prompt: string,
   systemPrompt: string | undefined,
@@ -244,7 +244,7 @@ async function executeWithRetry(
   throw lastError;
 }
 
-function calculateSummary(iterations: IterationResult[], totalTestDurationMs?: number): ProviderSummary {
+export function calculateSummary(iterations: IterationResult[], totalTestDurationMs?: number): ProviderSummary {
   const successful = iterations.filter((i) => i.success);
   const responseTimes = successful.map((i) => i.responseTime);
   const firstTokenLatencies = successful.map((i) => i.firstTokenLatency);
@@ -308,7 +308,7 @@ function calculateSummary(iterations: IterationResult[], totalTestDurationMs?: n
   };
 }
 
-function buildErrorBreakdown(iterations: IterationResult[]): Record<ErrorCategory, number> {
+export function buildErrorBreakdown(iterations: IterationResult[]): Record<ErrorCategory, number> {
   const breakdown: Record<ErrorCategory, number> = {
     timeout: 0,
     rate_limit: 0,

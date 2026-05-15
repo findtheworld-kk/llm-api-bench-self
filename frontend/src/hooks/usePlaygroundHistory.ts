@@ -73,21 +73,29 @@ export function usePlaygroundHistory() {
     return null;
   }, []);
 
-  const deleteEntry = useCallback(async (id: string) => {
+  const deleteEntry = useCallback(async (id: string): Promise<boolean> => {
+    // Only remove from local state AFTER the server confirms. Previously this
+    // unconditionally removed the item on any response, causing a "phantom delete"
+    // where the UI hid an item that was still in the server's DB — reload would
+    // bring it back, surprising the user.
     try {
-      await apiFetch(`/api/playground/history/${id}`, { method: 'DELETE' });
+      const res = await apiFetch(`/api/playground/history/${id}`, { method: 'DELETE' });
+      if (!res.ok) return false;
       setItems((prev) => prev.filter((i) => i.id !== id));
+      return true;
     } catch {
-      /* ignore */
+      return false;
     }
   }, []);
 
-  const clearAll = useCallback(async () => {
+  const clearAll = useCallback(async (): Promise<boolean> => {
     try {
-      await apiFetch('/api/playground/history', { method: 'DELETE' });
+      const res = await apiFetch('/api/playground/history', { method: 'DELETE' });
+      if (!res.ok) return false;
       setItems([]);
+      return true;
     } catch {
-      /* ignore */
+      return false;
     }
   }, []);
 

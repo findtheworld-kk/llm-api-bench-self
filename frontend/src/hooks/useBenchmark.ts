@@ -25,7 +25,16 @@ export function useBenchmark(): UseBenchmarkReturn {
   const fetchBenchmarks = useCallback(async (): Promise<BenchmarkRun[]> => {
     try {
       const res = await apiFetch('/api/benchmarks');
+      if (!res.ok) {
+        setError(`Failed to fetch benchmarks (${res.status})`);
+        return [];
+      }
       const data = await res.json();
+      // Server could return {error:'...'} with 200 in pathological cases — only accept arrays
+      if (!Array.isArray(data)) {
+        setError('Unexpected response shape from /api/benchmarks');
+        return [];
+      }
       setBenchmarks(data);
       return data;
     } catch {
@@ -37,7 +46,15 @@ export function useBenchmark(): UseBenchmarkReturn {
   const fetchBenchmark = useCallback(async (id: string) => {
     try {
       const res = await apiFetch(`/api/benchmarks/${id}`);
+      if (!res.ok) {
+        setError(`Failed to fetch benchmark (${res.status})`);
+        return;
+      }
       const data = await res.json();
+      if (!data || typeof data !== 'object' || Array.isArray(data)) {
+        setError('Unexpected response shape from benchmark endpoint');
+        return;
+      }
       setCurrentRun(data);
     } catch {
       setError('Failed to fetch benchmark');

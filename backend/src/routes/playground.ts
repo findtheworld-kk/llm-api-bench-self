@@ -13,7 +13,7 @@ type ContentPart =
   | { type: 'image'; source: { type: 'base64'; media_type: string; data: string } };
 
 /** Build OpenAI-style multimodal content array */
-function buildOpenAIContent(prompt: string, images: ImageInput[]): string | ContentPart[] {
+export function buildOpenAIContent(prompt: string, images: ImageInput[]): string | ContentPart[] {
   if (!images || images.length === 0) return prompt;
   const parts: ContentPart[] = [{ type: 'text', text: prompt }];
   for (const img of images) {
@@ -27,7 +27,7 @@ function buildOpenAIContent(prompt: string, images: ImageInput[]): string | Cont
 }
 
 /** Fetch a remote image URL and return as {mediaType, data} base64 */
-async function fetchImageAsBase64(url: string): Promise<{ mediaType: string; data: string } | null> {
+export async function fetchImageAsBase64(url: string): Promise<{ mediaType: string; data: string } | null> {
   try {
     const response = await fetch(url, { signal: AbortSignal.timeout(15000) });
     if (!response.ok) return null;
@@ -41,7 +41,7 @@ async function fetchImageAsBase64(url: string): Promise<{ mediaType: string; dat
 }
 
 /** Resolve all images to base64 (fetching URLs as needed) */
-async function resolveImagesToBase64(images: ImageInput[]): Promise<ImageInput[]> {
+export async function resolveImagesToBase64(images: ImageInput[]): Promise<ImageInput[]> {
   const resolved: ImageInput[] = [];
   for (const img of images) {
     if (img.type === 'url' && img.url) {
@@ -72,7 +72,7 @@ async function buildAnthropicContent(prompt: string, images: ImageInput[]): Prom
   return parts;
 }
 
-function buildAnthropicHeaders(apiKey: string): Record<string, string> {
+export function buildAnthropicHeaders(apiKey: string): Record<string, string> {
   return {
     'Content-Type': 'application/json',
     'x-api-key': apiKey,
@@ -84,7 +84,7 @@ function buildAnthropicHeaders(apiKey: string): Record<string, string> {
   };
 }
 
-function resolveProvider(providerId: string, modelName: string) {
+export function resolveProvider(providerId: string, modelName: string) {
   const config = providerStore.get(providerId);
   if (!config) return { error: 'Provider not found' };
 
@@ -122,7 +122,7 @@ function fetchWithTimeout(
 
 const MAX_IMAGE_SIZE_BYTES = 10 * 1024 * 1024; // 10MB per image
 
-function validateImages(images?: ImageInput[]): string | null {
+export function validateImages(images?: ImageInput[]): string | null {
   if (!images) return null;
   for (let i = 0; i < images.length; i++) {
     const img = images[i];
@@ -647,7 +647,7 @@ async function streamAnthropic(
 
 // ---- Stream: Gemini format ----
 
-async function buildGeminiParts(prompt: string, images?: ImageInput[]): Promise<any[]> {
+export async function buildGeminiParts(prompt: string, images?: ImageInput[]): Promise<any[]> {
   const parts: any[] = [];
   const resolvedImages = images ? await resolveImagesToBase64(images) : [];
   for (const img of resolvedImages) {

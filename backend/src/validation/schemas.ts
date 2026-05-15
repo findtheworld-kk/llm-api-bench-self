@@ -143,6 +143,7 @@ export const MonitorConfigSchema = z.object({
   alertLanguage: z.enum(['en', 'zh']).optional(),
   alertConfirmCount: z.number().int().min(1).max(20).optional(),
   alertConfirmDelayMinutes: z.number().int().min(1).max(60).optional(),
+  alertConfirmFailThreshold: z.number().int().min(1).max(20).optional(),
 });
 
 export const MonitorTargetSchema = z.object({
@@ -153,7 +154,9 @@ export const MonitorTargetSchema = z.object({
   alertEnabled: z.boolean().optional(),
 });
 
-export const MonitorTargetsArraySchema = z.array(MonitorTargetSchema).min(1, 'At least one target is required');
+// Note: allow empty arrays so users can clear the monitor list entirely.
+// Previously `.min(1)` blocked the "remove all targets" UX with a 400 response.
+export const MonitorTargetsArraySchema = z.array(MonitorTargetSchema);
 
 // Playground schemas
 export const PlaygroundRunSchema = z.object({

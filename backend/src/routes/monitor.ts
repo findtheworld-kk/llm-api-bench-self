@@ -57,6 +57,10 @@ router.put('/config', validate(MonitorConfigSchema), (req: Request, res: Respons
       typeof body.alertConfirmDelayMinutes === 'number'
         ? Math.max(1, Math.min(60, Math.round(body.alertConfirmDelayMinutes)))
         : current.alertConfirmDelayMinutes,
+    alertConfirmFailThreshold:
+      typeof body.alertConfirmFailThreshold === 'number'
+        ? Math.max(1, Math.min(20, Math.round(body.alertConfirmFailThreshold)))
+        : current.alertConfirmFailThreshold,
   };
   monitorConfigStore.setConfig(updated);
   res.json({ success: true, config: monitorConfigStore.getConfig() });

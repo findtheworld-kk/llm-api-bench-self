@@ -509,6 +509,7 @@
     "reminderInterval": "Reminder Interval",
     "alertConfirmCount": "Confirm Count",
     "alertConfirmDelay": "Confirm Delay",
+    "alertConfirmFailThreshold": "Fail Threshold K",
     "alertOn": "Alert enabled",
     "alertOff": "Alert disabled",
     "latency": "Latency"

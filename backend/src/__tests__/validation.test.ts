@@ -9,6 +9,7 @@ import {
   CreateWorkflowSchema,
   MonitorConfigSchema,
   MonitorTargetSchema,
+  MonitorTargetsArraySchema,
   PlaygroundRunSchema,
 } from '../validation/schemas';
 
@@ -346,6 +347,28 @@ describe('Validation Schemas', () => {
         intervalMinutes: 10,
       });
       expect(result.success).toBe(true);
+    });
+  });
+
+  describe('MonitorTargetsArraySchema', () => {
+    // Bug #7 regression: must allow [] so users can clear the monitor list
+    it('regression #7: accepts an empty array (clear all targets)', () => {
+      const result = MonitorTargetsArraySchema.safeParse([]);
+      expect(result.success).toBe(true);
+    });
+
+    it('accepts a single valid target', () => {
+      const result = MonitorTargetsArraySchema.safeParse([
+        { providerId: 'p1', modelName: 'gpt-4', providerName: 'OpenAI', intervalMinutes: 10 },
+      ]);
+      expect(result.success).toBe(true);
+    });
+
+    it('rejects an array containing an invalid target', () => {
+      const result = MonitorTargetsArraySchema.safeParse([
+        { providerId: '', modelName: 'gpt-4', providerName: 'OpenAI', intervalMinutes: 10 },
+      ]);
+      expect(result.success).toBe(false);
     });
   });
 

@@ -36,8 +36,13 @@ router.post('/', validate(ProviderConfigInputSchema), (req: Request, res: Respon
     })),
   };
 
-  const provider = providerStore.create(input);
-  res.status(201).json(providerStore.toResponse(provider));
+  try {
+    const provider = providerStore.create(input);
+    res.status(201).json(providerStore.toResponse(provider));
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Failed to create provider';
+    return res.status(400).json({ error: msg });
+  }
 });
 
 // POST /api/providers/test-connection - Test with raw config (before saving)
@@ -95,7 +100,13 @@ router.put('/:id', validate(ProviderConfigUpdateSchema), (req: Request, res: Res
     }));
   }
 
-  const updated = providerStore.update(req.params.id, input);
+  let updated;
+  try {
+    updated = providerStore.update(req.params.id, input);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Failed to update provider';
+    return res.status(400).json({ error: msg });
+  }
   if (!updated) {
     return res.status(500).json({ error: 'Failed to update provider' });
   }

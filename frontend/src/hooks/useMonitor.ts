@@ -39,8 +39,11 @@ export interface MonitorGlobalConfig {
   alertReminderMinutes?: number;
   alertWebhookSecret?: string;
   alertLanguage?: string;
-  alertConfirmCount?: number; // how many consecutive failures before alerting (default 5)
+  alertConfirmCount?: number; // total confirmation attempts in a cycle (N), default 5
   alertConfirmDelayMinutes?: number; // delay between each confirmation check in minutes (default 1)
+  // K-of-N voting: alert fires when failCount >= threshold within N attempts.
+  // Default = max(1, N - 1) so a single transient ok no longer drops the cycle.
+  alertConfirmFailThreshold?: number;
 }
 
 export function useMonitor() {
@@ -112,16 +115,24 @@ export function useMonitor() {
     }
   }, []);
 
-  const saveConfig = useCallback(async (config: MonitorGlobalConfig) => {
+  const saveConfig = useCallback(async (config: MonitorGlobalConfig): Promise<boolean> => {
+    // Only mirror server state into UI AFTER the PUT succeeds. Previously this
+    // unconditionally set state on any response (including non-2xx), causing a
+    // "phantom save" where UI showed saved values that never reached the server.
     try {
-      await apiFetch('/api/monitor/config', {
+      const res = await apiFetch('/api/monitor/config', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(config),
       });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error((data as { error?: string }).error || `Save failed (${res.status})`);
+      }
       setGlobalConfig(config);
+      return true;
     } catch {
-      /* ignore */
+      return false;
     }
   }, []);
 

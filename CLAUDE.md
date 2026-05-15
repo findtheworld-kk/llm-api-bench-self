@@ -63,6 +63,28 @@ Baseline (v2.11.0): 148 tests (frontend 56, backend 92), Health Score 9.30/10.
 - Regression tests for antd API changes use source file structural checks
 - QA reports are stored in `.gstack/qa-reports/` (not committed)
 
+### Writing tests
+
+**When a test fails, suspect the code before the test.** If a hook/route returns `false`
+on a 4xx but never sets `error`, that's almost certainly a bug — surface it as a
+"BUG SUSPECTED" finding and ask whether to fix the code or accept the behavior. Do
+NOT silently rewrite the assertion to pass.
+
+**Every mutation needs three tests:** 2xx success, 4xx/5xx server error, thrown
+exception. The error paths must verify state was NOT polluted and an error was
+surfaced. This caught 5 of the 8 bugs found in the May 2026 reverse-review.
+
+**Project-specific test plumbing:**
+
+- Mock the `services/api` module (not `fetch`) — `apiFetch` redirects on 401 and
+  pollutes state
+- For sqlite stores: `:memory:` DB + `vi.mock('./database')` + `vi.resetModules()` per
+  test to reset singletons
+- For SSE: stub upstream `fetch` with `ReadableStream` + `TextEncoder`; parse the
+  response `text` body, split on `data: ` frames
+- Schema validation runs BEFORE route-level clamps — feeding `concurrency: 999999`
+  hits the schema 5000 cap first, never the route's `Math.min`
+
 ## Language Rules
 
 - All code, scripts, comments, commit messages, and documentation must be written in **English**, unless explicitly requested otherwise by the user.

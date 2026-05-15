@@ -509,6 +509,7 @@
     "reminderInterval": "提醒间隔",
     "alertConfirmCount": "确认次数",
     "alertConfirmDelay": "确认间隔",
+    "alertConfirmFailThreshold": "失败阈值 K",
     "alertOn": "告警已开启",
     "alertOff": "告警已关闭",
     "latency": "延迟"

@@ -7,7 +7,7 @@ import { providerStore } from './providerStore';
 type WorkflowEventCallback = (event: { type: string; data: unknown }) => void;
 
 /** Resolve provider display name and model display name from a composite key like "configId:modelName" */
-function resolveProviderInfo(providerKey: string): { providerName: string; modelName: string } {
+export function resolveProviderInfo(providerKey: string): { providerName: string; modelName: string } {
   if (providerKey.includes(':')) {
     const [configId, modelId] = providerKey.split(':', 2);
     const config = providerStore.get(configId);
@@ -234,7 +234,7 @@ function waitForBenchmarkComplete(benchmarkId: string): Promise<void> {
   });
 }
 
-function markRemainingSkipped(workflow: BenchmarkWorkflow, fromIndex: number): void {
+export function markRemainingSkipped(workflow: BenchmarkWorkflow, fromIndex: number): void {
   for (let j = fromIndex; j < workflow.tasks.length; j++) {
     workflow.taskResults[j] = {
       taskId: workflow.tasks[j].id,
@@ -245,7 +245,7 @@ function markRemainingSkipped(workflow: BenchmarkWorkflow, fromIndex: number): v
   }
 }
 
-function extractTaskSummary(run: any): Record<string, any> {
+export function extractTaskSummary(run: any): Record<string, any> {
   const summaries: Record<string, any> = {};
   for (const [provider, result] of Object.entries(run.results as Record<string, any>)) {
     summaries[provider] = {
@@ -259,7 +259,7 @@ function extractTaskSummary(run: any): Record<string, any> {
   return summaries;
 }
 
-async function generateSummary(workflow: BenchmarkWorkflow): Promise<WorkflowSummary> {
+export async function generateSummary(workflow: BenchmarkWorkflow): Promise<WorkflowSummary> {
   const completedResults = workflow.taskResults.filter((r) => r.status === 'completed');
   const providerSummaries: Record<string, WorkflowProviderSummary> = {};
 

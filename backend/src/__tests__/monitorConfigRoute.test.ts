@@ -26,6 +26,7 @@ interface MonitorGlobalConfig {
   alertLanguage?: 'en' | 'zh';
   alertConfirmCount?: number;
   alertConfirmDelayMinutes?: number;
+  alertConfirmFailThreshold?: number;
 }
 
 /** Mirror of the PUT /api/monitor/config field-mapping logic in routes/monitor.ts */
@@ -67,6 +68,10 @@ function mergeConfig(current: MonitorGlobalConfig, body: any): MonitorGlobalConf
       typeof body.alertConfirmDelayMinutes === 'number'
         ? Math.max(1, Math.min(60, Math.round(body.alertConfirmDelayMinutes)))
         : current.alertConfirmDelayMinutes,
+    alertConfirmFailThreshold:
+      typeof body.alertConfirmFailThreshold === 'number'
+        ? Math.max(1, Math.min(20, Math.round(body.alertConfirmFailThreshold)))
+        : current.alertConfirmFailThreshold,
   };
 }
 
@@ -79,6 +84,7 @@ const CURRENT: MonitorGlobalConfig = {
   alertLanguage: 'en',
   alertConfirmCount: 5,
   alertConfirmDelayMinutes: 1,
+  alertConfirmFailThreshold: 4,
 };
 
 describe('PUT /api/monitor/config field mapping', () => {
@@ -113,6 +119,21 @@ describe('PUT /api/monitor/config field mapping', () => {
   it('rounds non-integer values for confirmation fields', () => {
     expect(mergeConfig(CURRENT, { alertConfirmCount: 3.7 }).alertConfirmCount).toBe(4);
     expect(mergeConfig(CURRENT, { alertConfirmDelayMinutes: 2.4 }).alertConfirmDelayMinutes).toBe(2);
+  });
+
+  it('persists alertConfirmFailThreshold from request body', () => {
+    expect(mergeConfig(CURRENT, { alertConfirmFailThreshold: 3 }).alertConfirmFailThreshold).toBe(3);
+  });
+
+  it('clamps alertConfirmFailThreshold to [1, 20] (further clamping to confirmCount happens in store)', () => {
+    expect(mergeConfig(CURRENT, { alertConfirmFailThreshold: 0 }).alertConfirmFailThreshold).toBe(1);
+    expect(mergeConfig(CURRENT, { alertConfirmFailThreshold: 99 }).alertConfirmFailThreshold).toBe(20);
+  });
+
+  it('keeps current alertConfirmFailThreshold when absent', () => {
+    expect(mergeConfig(CURRENT, { defaultIntervalMinutes: 15 }).alertConfirmFailThreshold).toBe(
+      CURRENT.alertConfirmFailThreshold,
+    );
   });
 });
 

@@ -66,13 +66,20 @@ export class DynamicProvider extends BaseLLMProvider {
   private config: ProviderConfig;
   private modelName: string;
   private plainApiKey?: string; // for test mode (skip decryption)
+  private requestTimeoutMs?: number; // optional override for fetch timeouts (used by health checks)
 
-  constructor(config: ProviderConfig, modelName: string, plainApiKey?: string) {
+  constructor(config: ProviderConfig, modelName: string, plainApiKey?: string, requestTimeoutMs?: number) {
     super();
     this.config = config;
     this.modelName = modelName;
     this.name = `${config.name}/${modelName}`;
     this.plainApiKey = plainApiKey;
+    this.requestTimeoutMs = requestTimeoutMs;
+  }
+
+  /** Pick the timeout to use, falling back to the per-method default for normal requests. */
+  private pickTimeout(defaultMs: number): number {
+    return this.requestTimeoutMs ?? defaultMs;
   }
 
   async execute(
@@ -136,7 +143,7 @@ export class DynamicProvider extends BaseLLMProvider {
           max_tokens: maxTokens,
         }),
       },
-      120000,
+      this.pickTimeout(120000),
     );
 
     if (!response.ok) {
@@ -193,7 +200,7 @@ export class DynamicProvider extends BaseLLMProvider {
           stream_options: { include_usage: true },
         }),
       },
-      180000,
+      this.pickTimeout(180000),
     );
 
     if (!response.ok) {
@@ -283,7 +290,7 @@ export class DynamicProvider extends BaseLLMProvider {
         headers: buildAnthropicHeaders(apiKey),
         body: JSON.stringify(body),
       },
-      120000,
+      this.pickTimeout(120000),
     );
 
     if (!response.ok) {
@@ -337,7 +344,7 @@ export class DynamicProvider extends BaseLLMProvider {
         headers: buildAnthropicHeaders(apiKey),
         body: JSON.stringify(body),
       },
-      180000,
+      this.pickTimeout(180000),
     );
 
     if (!response.ok) throw new Error(`Anthropic API error: ${response.status}`);
@@ -435,7 +442,7 @@ export class DynamicProvider extends BaseLLMProvider {
           generationConfig: { maxOutputTokens: maxTokens },
         }),
       },
-      120000,
+      this.pickTimeout(120000),
     );
 
     if (!response.ok) {
@@ -491,7 +498,7 @@ export class DynamicProvider extends BaseLLMProvider {
           generationConfig: { maxOutputTokens: maxTokens },
         }),
       },
-      180000,
+      this.pickTimeout(180000),
     );
 
     if (!response.ok) {
@@ -571,12 +578,18 @@ export function createDynamicProvider(providerId: string, modelName: string): Dy
   return new DynamicProvider(config, model.name);
 }
 
-// Test connectivity for a provider config (used by the test endpoint)
+/** Default timeout for connectivity / health-check probes. Shorter than playground/benchmark
+ *  defaults (180 s streaming) because health checks should fail fast — a model that hasn't
+ *  responded in 90 s is effectively down for users anyway. Override per call via `timeoutMs`. */
+export const PROBE_TIMEOUT_MS = 90_000;
+
+// Test connectivity for a provider config (used by the test endpoint and the monitor probes)
 export async function testProviderConnection(config: {
   endpoint: string;
   apiKey: string;
   format: ProviderFormat;
   modelName: string;
+  timeoutMs?: number;
 }): Promise<{
   success: boolean;
   latencyMs: number;
@@ -586,6 +599,7 @@ export async function testProviderConnection(config: {
   error?: string;
 }> {
   const startTime = Date.now();
+  const timeoutMs = config.timeoutMs ?? PROBE_TIMEOUT_MS;
 
   try {
     const tempConfig: ProviderConfig = {
@@ -609,7 +623,7 @@ export async function testProviderConnection(config: {
       updatedAt: '',
     };
 
-    const provider = new DynamicProvider(tempConfig, config.modelName, config.apiKey);
+    const provider = new DynamicProvider(tempConfig, config.modelName, config.apiKey, timeoutMs);
     const result = await provider.execute(
       'Write a 200-word introduction to artificial intelligence covering its history, current applications, and future potential.',
       undefined,
