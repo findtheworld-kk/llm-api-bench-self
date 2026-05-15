@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [2.15.2] - 2026-05-15
+
+### Fixed
+- CI: lint failures on `mainStarted`/`warmupCount` (unused locals in `benchmarkEngine.run.test.ts`) and `DEFAULT_CONFIRM_DELAY_MS` (unused fallback in `alertNotifier.ts`). Renamed the latter to `_DEFAULT_CONFIRM_DELAY_MS` and dropped the test locals — verification was already covered by `expect(execute).toHaveBeenCalledTimes(...)`
+- CI workflow: `quality` job now skips on tag pushes (the same commit was already validated on the branch push). Eliminates the duplicate CI runs that fired on every release — one for `push branches:main`, one for `push tags:v*`. The `docker` job still triggers on tag pushes and no longer depends on `quality` (the underlying commit was already validated)
+
 ## [2.15.1] - 2026-05-15
 
 ### Fixed

@@ -198,10 +198,7 @@ describe('startBenchmark — happy path', () => {
 
 describe('startBenchmark — warmup', () => {
   it('runs warmup iterations BEFORE main loop', async () => {
-    let mainStarted = false;
-    let warmupCount = 0;
     fns.execute.mockImplementation(async () => {
-      if (!mainStarted) warmupCount++;
       return {
         text: 'ok',
         inputTokens: 1,

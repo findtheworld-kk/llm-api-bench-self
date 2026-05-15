@@ -1,6 +1,6 @@
 {
   "name": "llm-benchmark-backend",
-  "version": "2.15.1",
+  "version": "2.15.2",
   "description": "LLM API Bench - Backend",
   "main": "dist/index.js",
   "scripts": {

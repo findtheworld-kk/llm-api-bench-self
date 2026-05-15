@@ -38,7 +38,7 @@ interface PendingConfirmation {
   delayMs: number; // delay between attempts in ms
 }
 
-const DEFAULT_CONFIRM_DELAY_MS = 60 * 1000; // 1 minute (fallback)
+const _DEFAULT_CONFIRM_DELAY_MS = 60 * 1000; // 1 minute (fallback, currently unused — kept for future config defaults)
 const DEFAULT_CONFIRM_COUNT = 5; // fallback
 
 // In-memory queue of targets awaiting confirmation
