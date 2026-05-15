@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [2.15.1] - 2026-05-15
+
+### Fixed
+- CI: `supertest` and `@types/supertest` moved from root `package.json` to `backend/package.json`. Local tests passed because TypeScript resolves up the directory tree to root `node_modules`, but CI installs each sub-package independently and could not find the module. Type check now passes in CI
+
 ## [2.15.0] - 2026-05-15
 
 ### Changed
