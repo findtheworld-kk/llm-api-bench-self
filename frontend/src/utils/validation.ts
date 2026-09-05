@@ -12,8 +12,8 @@ const PROVIDER_NAME_RE = /^[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}$/;
 // colon and plus (OpenRouter "…:free", Vertex "…@001"), leading tilde ("~vendor/model-latest"), 1-128 chars
 const MODEL_ID_RE = /^[a-zA-Z0-9~][a-zA-Z0-9._/:@+-]{0,127}$/;
 
-// Display name: alphanumeric, space, dash, underscore, dot, colon, parentheses, slash, 1-96 chars
-const DISPLAY_NAME_RE = /^[a-zA-Z0-9][a-zA-Z0-9 ._:()/-]{0,95}$/;
+// Display name: letters/digits in any script + the punctuation vendors use, 1-96 chars
+const DISPLAY_NAME_RE = /^[\p{L}\p{N}][\p{L}\p{N} ._:()/+,&'·-]{0,95}$/u;
 
 export function validateProviderName(value: string): string | null {
   if (!value) return i18next.t('validation.providerNameRequired');

@@ -82,11 +82,15 @@ describe('validateDisplayName', () => {
     expect(validateDisplayName('OpenAI: GPT-6 Astra')).toBeNull();
     expect(validateDisplayName('Claude Opus 5 (batch)')).toBeNull();
     expect(validateDisplayName('Qwen3 235B A22B')).toBeNull();
+    expect(validateDisplayName('Cohere: Command R+ (08-2024)')).toBeNull();
+    expect(validateDisplayName('Nous: Hermes 4, 70B')).toBeNull();
+    expect(validateDisplayName('通义千问 2.5')).toBeNull();
   });
 
   it('rejects special characters', () => {
     expect(validateDisplayName('name@test')).not.toBeNull();
     expect(validateDisplayName('name<script>')).not.toBeNull();
+    expect(validateDisplayName('name"quoted"')).not.toBeNull();
   });
 
   it('rejects over 96 chars', () => {

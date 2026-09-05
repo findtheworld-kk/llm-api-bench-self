@@ -194,6 +194,43 @@ describe('Validation Schemas', () => {
       expect(result.success).toBe(true);
     });
 
+    it('should accept an empty display name as "not set"', () => {
+      // The provider form always sends the field; a model with no display name sends ''.
+      const result = ProviderConfigInputSchema.safeParse({
+        name: 'Test-Provider',
+        endpoint: 'https://api.example.com',
+        apiKey: 'sk-test',
+        format: 'openai',
+        models: [{ name: 'gpt-4', displayName: '', contextSize: 4096, supportsVision: false, supportsTools: false }],
+      });
+      expect(result.success).toBe(true);
+    });
+
+    it('should accept the display names upstreams hand back', () => {
+      const result = ProviderConfigInputSchema.safeParse({
+        name: 'Test-Provider',
+        endpoint: 'https://api.example.com',
+        apiKey: 'sk-test',
+        format: 'openai',
+        models: [
+          { name: 'command-r-plus', displayName: 'Cohere: Command R+ (08-2024)', contextSize: 4096, supportsVision: false, supportsTools: false },
+          { name: 'qwen-2.5', displayName: '通义千问 2.5', contextSize: 4096, supportsVision: false, supportsTools: false },
+        ],
+      });
+      expect(result.success).toBe(true);
+    });
+
+    it('should still reject display names with markup characters', () => {
+      const result = ProviderConfigInputSchema.safeParse({
+        name: 'Test-Provider',
+        endpoint: 'https://api.example.com',
+        apiKey: 'sk-test',
+        format: 'openai',
+        models: [{ name: 'gpt-4', displayName: '<script>x</script>', contextSize: 4096, supportsVision: false, supportsTools: false }],
+      });
+      expect(result.success).toBe(false);
+    });
+
     it('should reject model ID longer than 128 chars', () => {
       const result = ProviderConfigInputSchema.safeParse({
         name: 'Test-Provider',

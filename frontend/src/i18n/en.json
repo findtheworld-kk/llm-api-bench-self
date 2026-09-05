@@ -109,7 +109,7 @@
     "providerNamePattern": "1-64 chars: letters, digits, dash, underscore. No spaces.",
     "modelIdRequired": "Model ID is required",
     "modelIdPattern": "1-128 chars: letters, digits, dash, underscore, dot, slash, colon, at, plus.",
-    "displayNamePattern": "1-96 chars: letters, digits, space, dash, underscore, dot, colon, parentheses, slash."
+    "displayNamePattern": "1-96 chars: letters, digits, space and . _ - : ( ) / + , & ' ·"
   },
   "settings": {
     "title": "Provider Configurations",

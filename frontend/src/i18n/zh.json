@@ -109,7 +109,7 @@
     "providerNamePattern": "1-64 个字符：字母、数字、短横线、下划线，不含空格。",
     "modelIdRequired": "请输入模型 ID",
     "modelIdPattern": "1-128 个字符：字母、数字、短横线、下划线、点、斜杠、冒号、@、加号。",
-    "displayNamePattern": "1-96 个字符：字母、数字、空格、短横线、下划线、点、冒号、括号、斜杠。"
+    "displayNamePattern": "1-96 个字符：任意语言的字母数字，以及空格和 . _ - : ( ) / + , & ' ·"
   },
   "settings": {
     "title": "服务商配置",

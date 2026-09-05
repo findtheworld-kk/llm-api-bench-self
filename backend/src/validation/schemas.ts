@@ -16,12 +16,13 @@ const providerNameRule = z
   .string()
   .regex(providerNameRegex, 'Provider name: 1-64 chars, alphanumeric/dash/underscore, no spaces');
 
-// Display name: alphanumeric, space, dash, underscore, dot, colon, parentheses, slash, 1-96 chars.
-// Widened from upstream so upstream-provided names ("OpenAI: GPT-6 Astra") survive discovery.
-const displayNameRegex = /^[a-zA-Z0-9][a-zA-Z0-9 ._:()/-]{0,95}$/;
+// Display name: any letter or digit in any script, plus the punctuation vendors actually
+// use in model names — "OpenAI: GPT-6 Astra", "Cohere: Command R+ (08-2024)", "通义千问 2.5".
+// Angle brackets, quotes, backticks and control characters stay out.
+const displayNameRegex = /^[\p{L}\p{N}][\p{L}\p{N} ._:()/+,&'·-]{0,95}$/u;
 const displayNameRule = z
   .string()
-  .regex(displayNameRegex, 'Display name: 1-96 chars, alphanumeric/space/dash/underscore/dot/colon/parentheses/slash');
+  .regex(displayNameRegex, 'Display name: 1-96 chars; letters, digits, space and . _ - : ( ) / + , & \' ·');
 
 // Auth schemas
 export const LoginSchema = z.object({
@@ -67,7 +68,7 @@ export const StartBenchmarkSchema = z.object({
 const ModelConfigSchema = z.object({
   id: z.string().min(1).optional(),
   name: modelIdRule,
-  displayName: displayNameRule.optional(),
+  displayName: displayNameRule.or(z.literal('')).optional(),
   contextSize: z.number().int().min(1),
   supportsVision: z.boolean(),
   supportsTools: z.boolean(),

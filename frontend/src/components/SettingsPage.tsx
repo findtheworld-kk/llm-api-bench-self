@@ -170,15 +170,17 @@ export function SettingsPage() {
           models: form.models,
         };
         if (form.apiKey.trim()) input.apiKey = form.apiKey;
-        await updateProvider(editingId, input);
+        const updated = await updateProvider(editingId, input);
+        if (!updated) return;
       } else {
-        await createProvider({
+        const created = await createProvider({
           name: form.name,
           endpoint: form.endpoint,
           apiKey: form.apiKey,
           format: form.format,
           models: form.models as any,
         });
+        if (!created) return;
       }
       closeForm();
     } finally {
@@ -333,7 +335,7 @@ export function SettingsPage() {
           </Button>
         </div>
 
-        {providerError && <Alert type="error" title={providerError} showIcon closable />}
+        {providerError && <Alert type="error" message={providerError} showIcon closable />}
 
         {loading && providers.length === 0 && (
           <div className="text-center py-8 text-text-tertiary text-[13px]">{t('settings.loadingProviders')}</div>
@@ -597,6 +599,12 @@ export function SettingsPage() {
               {discoverError && (
                 <div className="mb-2">
                   <Alert type="warning" message={discoverError} showIcon closable onClose={() => setDiscoverError(null)} />
+                </div>
+              )}
+
+              {providerError && (
+                <div className="mb-2">
+                  <Alert type="error" message={providerError} showIcon />
                 </div>
               )}
 

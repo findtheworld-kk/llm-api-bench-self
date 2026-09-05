@@ -9,11 +9,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 ### Added
 - **Upstream model discovery.** The provider form can now read the model list from the endpoint itself: fill in Endpoint URL and API key, press "Connect & load models", and every model the upstream advertises appears as a checkbox list — no more typing model IDs by hand. Context size, vision and tool-calling flags are filled in from the upstream response where it provides them (OpenRouter-style gateways do; plain OpenAI does not, and those fields fall back to the previous defaults). New endpoints: `POST /api/providers/discover-models` for an unsaved form and `POST /api/providers/:id/discover-models` for a saved provider, which reuses the stored key unless a new one was typed
 
+### Fixed
+- **A model with no display name could not be saved.** The form always sends the field, and an empty string failed the display-name pattern — so any provider holding a model you had not named was rejected with "Display name: 1-96 chars…". Predates model discovery (upstream's blank model row sends `displayName: ''` too), but discovery makes it constant: upstreams that return bare model IDs, with no label, produce a whole list of unnamed models. An empty display name now means "not set"
+- A failed save no longer closes the form. It used to close on both paths, throwing away every model just picked and leaving the error behind the closed dialog; the error is now shown inside the form, and antd's `Alert` gets `message` instead of the `title` prop it ignores
+
 ### Changed
+- Display names accept letters and digits in any script plus the punctuation vendors actually use — `Cohere: Command R+ (08-2024)`, `Nous: Hermes 4, 70B`, `通义千问 2.5`. Markup characters stay rejected
 - **The model area of the provider form is a list, not a grid of cards.** One row per model with a filter box, "select matching" and "selected only", inline display-name editing, and per-row details (context size, vision, tools, streaming, active) behind a disclosure. This keeps the form usable at the scale upstreams actually serve — 431 models on OpenRouter today, where 20 selected models used to mean 1762 px of card grid
 - A row is tagged "Monitored" when the monitor is already checking that provider + model
 - A new provider starts with no model rows; models come from discovery or from "Add manually"
-- Model IDs may now be up to 128 characters and contain `:`, `@`, `+` and a leading `~` — the shapes real gateways return (`qwen/qwen3-235b-a22b:free`, `~anthropic/claude-opus-latest`). Display names may be up to 96 characters and contain `:`, `(`, `)` and `/`, so upstream-provided labels survive discovery
+- Model IDs may now be up to 128 characters and contain `:`, `@`, `+` and a leading `~` — the shapes real gateways return (`qwen/qwen3-235b-a22b:free`, `~anthropic/claude-opus-latest`)
 
 ## [2.15.3] - 2026-05-15
 
