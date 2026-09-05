@@ -298,6 +298,15 @@ export interface ProviderConfigInput {
   models: Omit<ModelConfig, 'id'>[];
 }
 
+/** One model as advertised by an upstream's model-list endpoint. */
+export interface DiscoveredModel {
+  name: string;
+  displayName?: string;
+  contextSize?: number;
+  supportsVision?: boolean;
+  supportsTools?: boolean;
+}
+
 export interface TestConnectionResult {
   success: boolean;
   latencyMs: number;

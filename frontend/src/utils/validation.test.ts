@@ -38,7 +38,14 @@ describe('validateModelId', () => {
     expect(validateModelId('glm-5.1')).toBeNull();
     expect(validateModelId('z-ai/glm-4.7')).toBeNull();
     expect(validateModelId('claude-3.5-sonnet')).toBeNull();
-    expect(validateModelId('a'.repeat(64))).toBeNull();
+    expect(validateModelId('a'.repeat(128))).toBeNull();
+  });
+
+  it('accepts the id shapes model discovery returns', () => {
+    expect(validateModelId('qwen/qwen3-235b-a22b:free')).toBeNull();
+    expect(validateModelId('gemini-2.5-flash@001')).toBeNull();
+    expect(validateModelId('meta/llama-4+vision')).toBeNull();
+    expect(validateModelId('~anthropic/claude-opus-latest')).toBeNull();
   });
 
   it('rejects empty', () => {
@@ -49,8 +56,8 @@ describe('validateModelId', () => {
     expect(validateModelId('gpt 4o')).not.toBeNull();
   });
 
-  it('rejects over 64 chars', () => {
-    expect(validateModelId('a'.repeat(65))).not.toBeNull();
+  it('rejects over 128 chars', () => {
+    expect(validateModelId('a'.repeat(129))).not.toBeNull();
   });
 
   it('rejects starting with non-alphanumeric', () => {
@@ -68,7 +75,13 @@ describe('validateDisplayName', () => {
     expect(validateDisplayName('GLM 5.1')).toBeNull();
     expect(validateDisplayName('Gemini 2.5 Flash-Lite')).toBeNull();
     expect(validateDisplayName('DeepSeek-V3.2')).toBeNull();
-    expect(validateDisplayName('A'.repeat(64))).toBeNull();
+    expect(validateDisplayName('A'.repeat(96))).toBeNull();
+  });
+
+  it('accepts the display names upstreams hand back', () => {
+    expect(validateDisplayName('OpenAI: GPT-6 Astra')).toBeNull();
+    expect(validateDisplayName('Claude Opus 5 (batch)')).toBeNull();
+    expect(validateDisplayName('Qwen3 235B A22B')).toBeNull();
   });
 
   it('rejects special characters', () => {
@@ -76,8 +89,8 @@ describe('validateDisplayName', () => {
     expect(validateDisplayName('name<script>')).not.toBeNull();
   });
 
-  it('rejects over 64 chars', () => {
-    expect(validateDisplayName('A'.repeat(65))).not.toBeNull();
+  it('rejects over 96 chars', () => {
+    expect(validateDisplayName('A'.repeat(97))).not.toBeNull();
   });
 
   it('rejects starting with non-alphanumeric', () => {

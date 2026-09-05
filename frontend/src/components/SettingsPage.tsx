@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
-import { ProviderConfigResponse } from '../types';
+import { ProviderConfigResponse, DiscoveredModel } from '../types';
 import { useProviders } from '../hooks/useProviders';
 import { Button, Input, InputNumber, Select, Checkbox, Popconfirm, Alert, Tag, Modal } from '../antdImports';
-import { PlusOutlined, ApiOutlined } from '@ant-design/icons';
+import { PlusOutlined, ApiOutlined, CloudDownloadOutlined, DownOutlined, RightOutlined } from '@ant-design/icons';
+import { apiFetch } from '../services/api';
 import { APP_VERSION } from '../constants';
 import { validateProviderName, validateModelId, validateDisplayName } from '../utils/validation';
 
@@ -26,6 +27,24 @@ interface ProviderFormData {
   models: ModelFormData[];
 }
 
+/** One line in the model list: either a configured model, an upstream-only one, or both. */
+interface ModelRow {
+  key: string;
+  index: number;
+  name: string;
+  model: ModelFormData | null;
+  upstream?: DiscoveredModel;
+  selected: boolean;
+}
+
+/** 1048576 -> "1M", 200000 -> "200K" — context sizes are read, not compared digit by digit. */
+function formatContext(size?: number): string | null {
+  if (!size || size <= 0) return null;
+  if (size >= 1_000_000) return `${(size / 1_000_000).toFixed(size % 1_000_000 ? 1 : 0)}M`;
+  if (size >= 1000) return `${Math.round(size / 1000)}K`;
+  return String(size);
+}
+
 const EMPTY_MODEL: ModelFormData = {
   name: '',
   displayName: '',
@@ -41,7 +60,7 @@ const EMPTY_FORM: ProviderFormData = {
   endpoint: '',
   apiKey: '',
   format: 'openai',
-  models: [{ ...EMPTY_MODEL }],
+  models: [],
 };
 
 export function SettingsPage() {
@@ -56,6 +75,7 @@ export function SettingsPage() {
     deleteProvider,
     testConnection,
     testRawConnection: _testRawConnection,
+    discoverModels,
   } = useProviders();
 
   const [showForm, setShowForm] = useState(false);
@@ -69,14 +89,44 @@ export function SettingsPage() {
     error?: string;
   } | null>(null);
   const [saving, setSaving] = useState(false);
+  const [discovered, setDiscovered] = useState<DiscoveredModel[] | null>(null);
+  const [discovering, setDiscovering] = useState(false);
+  const [discoverError, setDiscoverError] = useState<string | null>(null);
+  const [modelFilter, setModelFilter] = useState('');
+  const [onlySelected, setOnlySelected] = useState(false);
+  const [expandedRow, setExpandedRow] = useState<string | null>(null);
+  const [monitoredModels, setMonitoredModels] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     fetchProviders();
   }, [fetchProviders]);
 
+  const resetModelBrowser = () => {
+    setDiscovered(null);
+    setDiscovering(false);
+    setDiscoverError(null);
+    setModelFilter('');
+    setOnlySelected(false);
+    setExpandedRow(null);
+    setMonitoredModels(new Set());
+  };
+
+  /** Which of this provider's models the monitor is already checking — shown as a row tag. */
+  const loadMonitoredModels = async (providerId: string) => {
+    try {
+      const res = await apiFetch('/api/monitor/targets');
+      if (!res.ok) return;
+      const targets = (await res.json()) as Array<{ providerId: string; modelName: string }>;
+      setMonitoredModels(new Set(targets.filter((x) => x.providerId === providerId).map((x) => x.modelName)));
+    } catch {
+      // The tag is a nicety — never block the form on it.
+    }
+  };
+
   const openCreateForm = () => {
     setForm({ ...EMPTY_FORM });
     setEditingId(null);
+    resetModelBrowser();
     setShowForm(true);
   };
 
@@ -97,6 +147,8 @@ export function SettingsPage() {
       })),
     });
     setEditingId(provider.id);
+    resetModelBrowser();
+    void loadMonitoredModels(provider.id);
     setShowForm(true);
   };
 
@@ -104,6 +156,7 @@ export function SettingsPage() {
     setShowForm(false);
     setEditingId(null);
     setForm({ ...EMPTY_FORM });
+    resetModelBrowser();
   };
 
   const handleSubmit = async () => {
@@ -143,6 +196,60 @@ export function SettingsPage() {
     setTestingId(null);
   };
 
+  const handleDiscover = async () => {
+    if (!form.endpoint.trim() || (!editingId && !form.apiKey.trim())) {
+      setDiscoverError(t('settings.discoverNeedsKey'));
+      return;
+    }
+    setDiscovering(true);
+    setDiscoverError(null);
+    const result = await discoverModels({
+      id: editingId,
+      endpoint: form.endpoint,
+      apiKey: form.apiKey,
+      format: form.format,
+    });
+    if (result.error) {
+      setDiscoverError(t('settings.discoverFailed', { error: result.error }));
+    } else {
+      setDiscovered(result.models);
+      if (result.models.length === 0) setDiscoverError(t('settings.discoverEmpty'));
+    }
+    setDiscovering(false);
+  };
+
+  /** Upstream metadata is best-effort: fall back to the same defaults a hand-typed model gets. */
+  const modelFromUpstream = (upstream: DiscoveredModel): ModelFormData => ({
+    name: upstream.name,
+    displayName: upstream.displayName && !validateDisplayName(upstream.displayName) ? upstream.displayName : '',
+    contextSize: upstream.contextSize || 4096,
+    supportsVision: upstream.supportsVision ?? false,
+    supportsTools: upstream.supportsTools ?? false,
+    supportsStreaming: true,
+    isActive: true,
+  });
+
+  const selectUpstreamModel = (upstream: DiscoveredModel) => {
+    setForm((prev) =>
+      prev.models.some((m) => m.name === upstream.name)
+        ? prev
+        : { ...prev, models: [...prev.models, modelFromUpstream(upstream)] },
+    );
+  };
+
+  const selectAllMatching = () => {
+    const query = modelFilter.trim().toLowerCase();
+    const configured = new Set(form.models.map((m) => m.name));
+    const additions = (discovered ?? [])
+      .filter((m) => !configured.has(m.name))
+      .filter(
+        (m) =>
+          !query || m.name.toLowerCase().includes(query) || (m.displayName || '').toLowerCase().includes(query),
+      )
+      .map(modelFromUpstream);
+    if (additions.length > 0) setForm((prev) => ({ ...prev, models: [...prev.models, ...additions] }));
+  };
+
   const addModel = () => {
     setForm((prev) => ({ ...prev, models: [...prev.models, { ...EMPTY_MODEL }] }));
   };
@@ -160,6 +267,40 @@ export function SettingsPage() {
       models: prev.models.map((m, i) => (i === index ? { ...m, [field]: value } : m)),
     }));
   };
+
+  const upstreamByName = useMemo(
+    () => new Map((discovered ?? []).map((m) => [m.name, m])),
+    [discovered],
+  );
+
+  /** Configured models first (they are the answer), then whatever else the upstream offers. */
+  const modelRows = useMemo<ModelRow[]>(() => {
+    const query = modelFilter.trim().toLowerCase();
+    const matches = (name: string, displayName?: string) =>
+      !query || name.toLowerCase().includes(query) || (displayName || '').toLowerCase().includes(query);
+
+    const rows: ModelRow[] = form.models.map((model, index) => ({
+      key: `sel-${index}`,
+      index,
+      name: model.name,
+      model,
+      upstream: upstreamByName.get(model.name),
+      selected: true,
+    }));
+
+    if (!onlySelected) {
+      const configured = new Set(form.models.map((m) => m.name));
+      for (const upstream of discovered ?? []) {
+        if (configured.has(upstream.name)) continue;
+        rows.push({ key: `up-${upstream.name}`, index: -1, name: upstream.name, model: null, upstream, selected: false });
+      }
+    }
+
+    // A freshly added manual row has no id yet — it must stay visible so it can be typed into.
+    return rows.filter((row) => (row.selected && !row.name) || matches(row.name, row.model?.displayName || row.upstream?.displayName));
+  }, [form.models, discovered, upstreamByName, modelFilter, onlySelected]);
+
+  const monitoredSelected = form.models.filter((m) => monitoredModels.has(m.name)).length;
 
   const providerNameError = validateProviderName(form.name.trim());
   const modelErrors = form.models.map((m) => ({
@@ -399,19 +540,31 @@ export function SettingsPage() {
             {/* Endpoint */}
             <div>
               <label className="text-[11px] text-text-secondary mb-1 block">{t('settings.endpointUrl')}</label>
-              <Input
-                placeholder={
-                  form.format === 'openai'
-                    ? 'https://api.openai.com/v1'
-                    : form.format === 'anthropic'
-                      ? 'https://api.anthropic.com/v1'
-                      : form.format === 'gemini'
-                        ? 'https://generativelanguage.googleapis.com/v1beta'
-                        : 'https://your-api-endpoint.com/v1'
-                }
-                value={form.endpoint}
-                onChange={(e) => setForm((prev) => ({ ...prev, endpoint: e.target.value }))}
-              />
+              <div className="flex gap-2">
+                <Input
+                  placeholder={
+                    form.format === 'openai'
+                      ? 'https://api.openai.com/v1'
+                      : form.format === 'anthropic'
+                        ? 'https://api.anthropic.com/v1'
+                        : form.format === 'gemini'
+                          ? 'https://generativelanguage.googleapis.com/v1beta'
+                          : 'https://your-api-endpoint.com/v1'
+                  }
+                  value={form.endpoint}
+                  onChange={(e) => setForm((prev) => ({ ...prev, endpoint: e.target.value }))}
+                />
+                <Button
+                  type="primary"
+                  ghost
+                  icon={<CloudDownloadOutlined />}
+                  loading={discovering}
+                  disabled={!form.endpoint.trim() || (!editingId && !form.apiKey.trim())}
+                  onClick={handleDiscover}
+                >
+                  {discovering ? t('settings.discovering') : t('settings.discoverModels')}
+                </Button>
+              </div>
             </div>
 
             {/* API Key */}
@@ -431,107 +584,180 @@ export function SettingsPage() {
             <div>
               <div className="flex items-center justify-between mb-2">
                 <label className="text-[11px] text-text-secondary">{t('settings.models')}</label>
-                <Button type="link" size="small" icon={<PlusOutlined />} onClick={addModel}>
-                  {t('settings.addModel')}
-                </Button>
+                <div className="flex items-center gap-3 text-[11px] text-text-tertiary">
+                  {discovered !== null && <span>{t('settings.discoveredCount', { count: discovered.length })}</span>}
+                  <span className="text-accent-blue">{t('settings.selectedCount', { count: form.models.length })}</span>
+                  {monitoredSelected > 0 && <span>{t('settings.monitoredCount', { count: monitoredSelected })}</span>}
+                  <Button type="link" size="small" icon={<PlusOutlined />} onClick={addModel}>
+                    {t('settings.addManualModel')}
+                  </Button>
+                </div>
               </div>
-              <div className="grid grid-cols-2 gap-2 max-h-[400px] overflow-y-auto">
-                {form.models.map((model, idx) => (
-                  <div
-                    key={idx}
-                    className={`p-3 rounded bg-bg-card border border-border space-y-2 ${!model.isActive ? 'opacity-50' : ''}`}
-                  >
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-[10px] text-text-tertiary font-medium">
-                        {t('settings.modelNumber', { number: idx + 1 })}
-                      </span>
-                      <div className="flex items-center gap-2">
+
+              {discoverError && (
+                <div className="mb-2">
+                  <Alert type="warning" message={discoverError} showIcon closable onClose={() => setDiscoverError(null)} />
+                </div>
+              )}
+
+              {discovered !== null && discovered.length > 0 && (
+                <div className="flex items-center gap-2 mb-2">
+                  <Input
+                    size="small"
+                    allowClear
+                    placeholder={t('settings.searchModels')}
+                    value={modelFilter}
+                    onChange={(e) => setModelFilter(e.target.value)}
+                    style={{ flex: 1 }}
+                  />
+                  <Button size="small" onClick={selectAllMatching}>
+                    {t('settings.selectAllMatching')}
+                  </Button>
+                  <Button size="small" type={onlySelected ? 'primary' : 'default'} onClick={() => setOnlySelected((v) => !v)}>
+                    {t('settings.onlySelected')}
+                  </Button>
+                </div>
+              )}
+
+              <div className="rounded border border-border bg-bg-card max-h-[400px] overflow-y-auto">
+                {modelRows.length === 0 && (
+                  <div className="text-center py-8 text-text-tertiary text-[12px]">
+                    {discovered === null ? t('settings.noModelsYet') : t('settings.noModelsMatch')}
+                  </div>
+                )}
+
+                {modelRows.map((row) => {
+                  const rowError = row.model && row.model.name ? validateModelId(row.model.name) : null;
+                  const displayNameError = row.model?.displayName ? validateDisplayName(row.model.displayName) : null;
+                  const context = formatContext(row.model?.contextSize ?? row.upstream?.contextSize);
+                  const hasVision = row.model ? row.model.supportsVision : row.upstream?.supportsVision;
+                  const hasTools = row.model ? row.model.supportsTools : row.upstream?.supportsTools;
+                  const expanded = expandedRow === row.key;
+
+                  return (
+                    <div
+                      key={row.key}
+                      className={`border-b border-border last:border-b-0 ${row.selected ? 'bg-[rgba(64,150,255,0.06)]' : ''} ${
+                        row.model && row.model.isActive === false ? 'opacity-50' : ''
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 px-3 py-1.5">
                         <Checkbox
-                          checked={model.isActive}
-                          onChange={(e) => updateModel(idx, 'isActive', e.target.checked)}
-                          style={{ fontSize: 10 }}
-                        >
-                          <span className="text-[10px] text-text-secondary">{t('settings.activeLabel')}</span>
-                        </Checkbox>
-                        {form.models.length > 1 && (
-                          <Button
-                            type="link"
-                            danger
+                          checked={row.selected}
+                          onChange={() => {
+                            if (row.selected) {
+                              removeModel(row.index);
+                              setExpandedRow(null);
+                            } else if (row.upstream) {
+                              selectUpstreamModel(row.upstream);
+                            }
+                          }}
+                        />
+
+                        {row.selected && !row.upstream ? (
+                          <Input
                             size="small"
-                            style={{ fontSize: 10 }}
-                            onClick={() => removeModel(idx)}
-                          >
-                            {t('settings.remove')}
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <label className="text-[10px] text-text-tertiary mb-0.5 block">{t('settings.modelId')}</label>
-                        <Input
-                          size="small"
-                          placeholder={t('settings.modelIdPlaceholder')}
-                          value={model.name}
-                          status={model.name && modelErrors[idx]?.name ? 'error' : undefined}
-                          onChange={(e) => updateModel(idx, 'name', e.target.value)}
-                        />
-                        {model.name && modelErrors[idx]?.name && (
-                          <span className="text-[9px] text-accent-rose mt-0.5 block">{modelErrors[idx].name}</span>
-                        )}
-                      </div>
-                      <div>
-                        <label className="text-[10px] text-text-tertiary mb-0.5 block">
-                          {t('settings.displayName')}
-                        </label>
-                        <Input
-                          size="small"
-                          placeholder={t('settings.displayNamePlaceholder')}
-                          value={model.displayName}
-                          status={model.displayName && modelErrors[idx]?.displayName ? 'error' : undefined}
-                          onChange={(e) => updateModel(idx, 'displayName', e.target.value)}
-                        />
-                        {model.displayName && modelErrors[idx]?.displayName && (
-                          <span className="text-[9px] text-accent-rose mt-0.5 block">
-                            {modelErrors[idx].displayName}
+                            style={{ flex: 1, fontFamily: 'var(--font-mono)' }}
+                            placeholder={t('settings.modelIdPlaceholder')}
+                            value={row.model?.name || ''}
+                            status={row.model?.name && rowError ? 'error' : undefined}
+                            onChange={(e) => updateModel(row.index, 'name', e.target.value)}
+                          />
+                        ) : (
+                          <span className="flex-1 font-mono text-[12px] text-text-primary truncate" title={row.name}>
+                            {row.name}
                           </span>
                         )}
+
+                        {row.selected && (
+                          <Input
+                            size="small"
+                            style={{ width: 150 }}
+                            placeholder={t('settings.displayNamePlaceholder')}
+                            value={row.model?.displayName || ''}
+                            status={displayNameError ? 'error' : undefined}
+                            onChange={(e) => updateModel(row.index, 'displayName', e.target.value)}
+                          />
+                        )}
+
+                        <div className="flex items-center gap-1 flex-none">
+                          {context && row.name && (
+                            <Tag style={{ marginInlineEnd: 0, fontSize: 10, lineHeight: '16px' }}>{context}</Tag>
+                          )}
+                          {hasVision && (
+                            <Tag color="purple" style={{ marginInlineEnd: 0, fontSize: 10, lineHeight: '16px' }}>
+                              {t('settings.vision')}
+                            </Tag>
+                          )}
+                          {hasTools && (
+                            <Tag color="green" style={{ marginInlineEnd: 0, fontSize: 10, lineHeight: '16px' }}>
+                              {t('settings.toolCalling')}
+                            </Tag>
+                          )}
+                          {monitoredModels.has(row.name) && (
+                            <Tag color="blue" style={{ marginInlineEnd: 0, fontSize: 10, lineHeight: '16px' }}>
+                              {t('settings.monitored')}
+                            </Tag>
+                          )}
+                        </div>
+
+                        {row.selected && (
+                          <Button
+                            type="link"
+                            size="small"
+                            icon={expanded ? <DownOutlined /> : <RightOutlined />}
+                            aria-label={t('settings.modelDetails')}
+                            onClick={() => setExpandedRow(expanded ? null : row.key)}
+                          />
+                        )}
                       </div>
+
+                      {row.selected && rowError && row.model?.name && (
+                        <div className="px-3 pb-1.5 pl-9 text-[10px] text-accent-rose">{rowError}</div>
+                      )}
+
+                      {expanded && row.model && (
+                        <div className="px-3 pb-2 pl-9 flex items-center gap-4 flex-wrap">
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] text-text-tertiary">{t('settings.contextSize')}</span>
+                            <InputNumber
+                              changeOnBlur
+                              size="small"
+                              min={1}
+                              style={{ width: 110 }}
+                              value={row.model.contextSize}
+                              onChange={(v) => updateModel(row.index, 'contextSize', v ?? 4096)}
+                            />
+                          </div>
+                          <Checkbox
+                            checked={row.model.supportsVision}
+                            onChange={(e) => updateModel(row.index, 'supportsVision', e.target.checked)}
+                          >
+                            <span className="text-[11px] text-text-secondary">{t('settings.vision')}</span>
+                          </Checkbox>
+                          <Checkbox
+                            checked={row.model.supportsTools}
+                            onChange={(e) => updateModel(row.index, 'supportsTools', e.target.checked)}
+                          >
+                            <span className="text-[11px] text-text-secondary">{t('settings.toolCalling')}</span>
+                          </Checkbox>
+                          <Checkbox
+                            checked={row.model.supportsStreaming}
+                            onChange={(e) => updateModel(row.index, 'supportsStreaming', e.target.checked)}
+                          >
+                            <span className="text-[11px] text-text-secondary">{t('settings.streaming')}</span>
+                          </Checkbox>
+                          <Checkbox
+                            checked={row.model.isActive}
+                            onChange={(e) => updateModel(row.index, 'isActive', e.target.checked)}
+                          >
+                            <span className="text-[11px] text-text-secondary">{t('settings.activeLabel')}</span>
+                          </Checkbox>
+                        </div>
+                      )}
                     </div>
-                    <div>
-                      <label className="text-[10px] text-text-tertiary mb-0.5 block">{t('settings.contextSize')}</label>
-                      <InputNumber
-                        changeOnBlur
-                        size="small"
-                        style={{ width: '100%' }}
-                        placeholder="128000"
-                        value={model.contextSize}
-                        onChange={(v) => updateModel(idx, 'contextSize', v ?? 4096)}
-                        min={1}
-                      />
-                    </div>
-                    <div className="flex items-center gap-4">
-                      <Checkbox
-                        checked={model.supportsVision}
-                        onChange={(e) => updateModel(idx, 'supportsVision', e.target.checked)}
-                      >
-                        <span className="text-[11px] text-text-secondary">{t('settings.vision')}</span>
-                      </Checkbox>
-                      <Checkbox
-                        checked={model.supportsTools}
-                        onChange={(e) => updateModel(idx, 'supportsTools', e.target.checked)}
-                      >
-                        <span className="text-[11px] text-text-secondary">{t('settings.toolCalling')}</span>
-                      </Checkbox>
-                      <Checkbox
-                        checked={model.supportsStreaming}
-                        onChange={(e) => updateModel(idx, 'supportsStreaming', e.target.checked)}
-                      >
-                        <span className="text-[11px] text-text-secondary">{t('settings.streaming')}</span>
-                      </Checkbox>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           </div>

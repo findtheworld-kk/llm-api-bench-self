@@ -8,11 +8,12 @@ import i18next from 'i18next';
 // Provider name: alphanumeric, dash, underscore, NO spaces, 1-64 chars
 const PROVIDER_NAME_RE = /^[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}$/;
 
-// Model ID: alphanumeric, dash, underscore, dot, slash (LiteLLM vendor/model), 1-64 chars
-const MODEL_ID_RE = /^[a-zA-Z0-9][a-zA-Z0-9._/-]{0,63}$/;
+// Model ID: alphanumeric, dash, underscore, dot, slash (LiteLLM vendor/model),
+// colon and plus (OpenRouter "…:free", Vertex "…@001"), leading tilde ("~vendor/model-latest"), 1-128 chars
+const MODEL_ID_RE = /^[a-zA-Z0-9~][a-zA-Z0-9._/:@+-]{0,127}$/;
 
-// Display name: alphanumeric, space, dash, underscore, dot, 1-64 chars
-const DISPLAY_NAME_RE = /^[a-zA-Z0-9][a-zA-Z0-9 ._-]{0,63}$/;
+// Display name: alphanumeric, space, dash, underscore, dot, colon, parentheses, slash, 1-96 chars
+const DISPLAY_NAME_RE = /^[a-zA-Z0-9][a-zA-Z0-9 ._:()/-]{0,95}$/;
 
 export function validateProviderName(value: string): string | null {
   if (!value) return i18next.t('validation.providerNameRequired');

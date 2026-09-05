@@ -108,8 +108,8 @@
     "providerNameRequired": "请输入服务商名称",
     "providerNamePattern": "1-64 个字符：字母、数字、短横线、下划线，不含空格。",
     "modelIdRequired": "请输入模型 ID",
-    "modelIdPattern": "1-64 个字符：字母、数字、短横线、下划线、点、斜杠。",
-    "displayNamePattern": "1-64 个字符：字母、数字、空格、短横线、下划线、点。"
+    "modelIdPattern": "1-128 个字符：字母、数字、短横线、下划线、点、斜杠、冒号、@、加号。",
+    "displayNamePattern": "1-96 个字符：字母、数字、空格、短横线、下划线、点、冒号、括号、斜杠。"
   },
   "settings": {
     "title": "服务商配置",
@@ -155,7 +155,26 @@
     "formatCustom": "自定义（OpenAI 兼容）",
     "providerNamePlaceholder": "例如 My-OpenAI",
     "modelIdPlaceholder": "例如 gpt-4o",
-    "displayNamePlaceholder": "例如 GPT-4o（可选）"
+    "displayNamePlaceholder": "例如 GPT-4o（可选）",
+    "discoverModels": "连接并读取模型",
+    "discovering": "读取中…",
+    "discoverFailed": "读取模型失败：{{error}}",
+    "discoverEmpty": "上游没有返回模型，请手动添加",
+    "discoverNeedsKey": "请先填 Endpoint 和 API Key",
+    "discoveredCount": "上游 {{count}}",
+    "selectedCount": "已选 {{count}}",
+    "monitoredCount": "监控中 {{count}}",
+    "searchModels": "筛选模型",
+    "selectAllMatching": "全选匹配",
+    "clearSelection": "清空已选",
+    "onlySelected": "只看已选",
+    "addManualModel": "手动添加",
+    "noModelsYet": "还没有模型——从上游读取，或手动添加一个",
+    "noModelsMatch": "没有模型匹配这个筛选",
+    "newUpstream": "上游新增",
+    "monitored": "监控中",
+    "modelDetails": "详情",
+    "modelIdInvalid": "模型 ID 不合法"
   },
   "config": {
     "configuration": "配置",
@@ -511,8 +530,7 @@
     "alertConfirmDelay": "确认间隔",
     "alertConfirmFailThreshold": "失败阈值 K",
     "alertOn": "告警已开启",
-    "alertOff": "告警已关闭",
-    "latency": "延迟"
+    "alertOff": "告警已关闭"
   },
   "history": {
     "loading": "加载中...",

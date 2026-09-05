@@ -11,6 +11,7 @@ const fns = vi.hoisted(() => ({
   delete: vi.fn(),
   toResponse: vi.fn(),
   testProviderConnection: vi.fn(),
+  listRemoteModels: vi.fn(),
   removeTarget: vi.fn(),
   renameTarget: vi.fn(),
   removeTargetsByProvider: vi.fn(),
@@ -37,6 +38,8 @@ vi.mock('../services/monitorConfigStore', () => ({
 }));
 
 vi.mock('../providers/adapter', () => ({ testProviderConnection: fns.testProviderConnection }));
+
+vi.mock('../providers/modelDiscovery', () => ({ listRemoteModels: fns.listRemoteModels }));
 
 import providersRouter from './providers';
 
@@ -357,5 +360,71 @@ describe('POST /api/providers/:id/test — saved', () => {
     fns.testProviderConnection.mockRejectedValueOnce(new Error('connection refused'));
     const res = await request(makeApp()).post('/api/providers/p1/test').send({ modelName: 'gpt-4' });
     expect(res.status).toBe(502);
+  });
+});
+
+describe('POST /api/providers/discover-models — unsaved', () => {
+  it('200 with the upstream model list', async () => {
+    fns.listRemoteModels.mockResolvedValueOnce([{ name: 'gpt-4o', contextSize: 128000 }]);
+    const res = await request(makeApp())
+      .post('/api/providers/discover-models')
+      .send({ endpoint: 'https://x/v1', apiKey: 'k', format: 'openai' });
+    expect(res.status).toBe(200);
+    expect(res.body.models).toEqual([{ name: 'gpt-4o', contextSize: 128000 }]);
+  });
+
+  it('400 when the API key is missing (validation)', async () => {
+    const res = await request(makeApp())
+      .post('/api/providers/discover-models')
+      .send({ endpoint: 'https://x/v1', format: 'openai' });
+    expect(res.status).toBe(400);
+  });
+
+  it('502 with the upstream reason when discovery fails', async () => {
+    fns.listRemoteModels.mockRejectedValueOnce(new Error('Upstream rejected the API key (HTTP 401)'));
+    const res = await request(makeApp())
+      .post('/api/providers/discover-models')
+      .send({ endpoint: 'https://x/v1', apiKey: 'bad', format: 'openai' });
+    expect(res.status).toBe(502);
+    expect(res.body.error).toContain('rejected the API key');
+  });
+});
+
+describe('POST /api/providers/:id/discover-models — saved', () => {
+  it('uses the stored key when the form sends none', async () => {
+    fns.get.mockReturnValueOnce(mockProvider);
+    fns.getDecryptedApiKey.mockReturnValueOnce('sk-decrypted');
+    fns.listRemoteModels.mockResolvedValueOnce([{ name: 'gpt-4o' }]);
+
+    const res = await request(makeApp()).post('/api/providers/p1/discover-models').send({});
+
+    expect(res.status).toBe(200);
+    expect(fns.listRemoteModels.mock.calls[0][0]).toMatchObject({
+      endpoint: mockProvider.endpoint,
+      apiKey: 'sk-decrypted',
+      format: mockProvider.format,
+    });
+  });
+
+  it('prefers a key and endpoint typed into the form', async () => {
+    fns.get.mockReturnValueOnce(mockProvider);
+    fns.listRemoteModels.mockResolvedValueOnce([]);
+
+    await request(makeApp())
+      .post('/api/providers/p1/discover-models')
+      .send({ apiKey: ' sk-typed ', endpoint: 'https://other/v1', format: 'custom' });
+
+    expect(fns.getDecryptedApiKey).not.toHaveBeenCalled();
+    expect(fns.listRemoteModels.mock.calls[0][0]).toMatchObject({
+      endpoint: 'https://other/v1',
+      apiKey: 'sk-typed',
+      format: 'custom',
+    });
+  });
+
+  it('404 when provider not found', async () => {
+    fns.get.mockReturnValueOnce(undefined);
+    const res = await request(makeApp()).post('/api/providers/absent/discover-models').send({});
+    expect(res.status).toBe(404);
   });
 });

@@ -1,9 +1,14 @@
 import { z, ZodSchema } from 'zod';
 
 // --- Shared naming rules ---
-// Model ID: alphanumeric, dash, underscore, dot, slash (for LiteLLM vendor/model), 1-64 chars
-const modelIdRegex = /^[a-zA-Z0-9][a-zA-Z0-9._/-]{0,63}$/;
-const modelIdRule = z.string().regex(modelIdRegex, 'Model ID: 1-64 chars, alphanumeric/dash/underscore/dot/slash');
+// Model ID: alphanumeric, dash, underscore, dot, slash (LiteLLM vendor/model),
+// colon and plus (OpenRouter variants like "…:free", Vertex "…@001"), a leading tilde
+// (OpenRouter "~vendor/model-latest" aliases), 1-128 chars.
+// Widened from upstream's 64/no-colon so ids returned by model discovery are storable.
+const modelIdRegex = /^[a-zA-Z0-9~][a-zA-Z0-9._/:@+-]{0,127}$/;
+const modelIdRule = z
+  .string()
+  .regex(modelIdRegex, 'Model ID: 1-128 chars, alphanumeric/dash/underscore/dot/slash/colon/at/plus');
 
 // Provider name: alphanumeric, dash, underscore, NO spaces, 1-64 chars
 const providerNameRegex = /^[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}$/;
@@ -11,11 +16,12 @@ const providerNameRule = z
   .string()
   .regex(providerNameRegex, 'Provider name: 1-64 chars, alphanumeric/dash/underscore, no spaces');
 
-// Display name: alphanumeric, space, dash, underscore, dot, 1-64 chars
-const displayNameRegex = /^[a-zA-Z0-9][a-zA-Z0-9 ._-]{0,63}$/;
+// Display name: alphanumeric, space, dash, underscore, dot, colon, parentheses, slash, 1-96 chars.
+// Widened from upstream so upstream-provided names ("OpenAI: GPT-6 Astra") survive discovery.
+const displayNameRegex = /^[a-zA-Z0-9][a-zA-Z0-9 ._:()/-]{0,95}$/;
 const displayNameRule = z
   .string()
-  .regex(displayNameRegex, 'Display name: 1-64 chars, alphanumeric/space/dash/underscore/dot');
+  .regex(displayNameRegex, 'Display name: 1-96 chars, alphanumeric/space/dash/underscore/dot/colon/parentheses/slash');
 
 // Auth schemas
 export const LoginSchema = z.object({
@@ -84,6 +90,12 @@ export const ProviderConfigUpdateSchema = z.object({
   apiKey: z.string().min(1, 'API key is required').optional(),
   format: z.enum(['openai', 'anthropic', 'gemini', 'custom']).optional(),
   models: z.array(ModelConfigSchema).min(1, 'At least one model is required').optional(),
+});
+
+export const DiscoverModelsSchema = z.object({
+  endpoint: z.string().min(1, 'Endpoint URL is required'),
+  apiKey: z.string().min(1, 'API key is required'),
+  format: z.enum(['openai', 'anthropic', 'gemini', 'custom']),
 });
 
 export const TestConnectionSchema = z.object({

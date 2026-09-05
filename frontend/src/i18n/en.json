@@ -108,8 +108,8 @@
     "providerNameRequired": "Provider name is required",
     "providerNamePattern": "1-64 chars: letters, digits, dash, underscore. No spaces.",
     "modelIdRequired": "Model ID is required",
-    "modelIdPattern": "1-64 chars: letters, digits, dash, underscore, dot, slash.",
-    "displayNamePattern": "1-64 chars: letters, digits, space, dash, underscore, dot."
+    "modelIdPattern": "1-128 chars: letters, digits, dash, underscore, dot, slash, colon, at, plus.",
+    "displayNamePattern": "1-96 chars: letters, digits, space, dash, underscore, dot, colon, parentheses, slash."
   },
   "settings": {
     "title": "Provider Configurations",
@@ -155,7 +155,26 @@
     "formatCustom": "Custom (OpenAI-compat)",
     "providerNamePlaceholder": "e.g. My-OpenAI",
     "modelIdPlaceholder": "e.g. gpt-4o",
-    "displayNamePlaceholder": "e.g. GPT-4o (optional)"
+    "displayNamePlaceholder": "e.g. GPT-4o (optional)",
+    "discoverModels": "Connect & load models",
+    "discovering": "Loading…",
+    "discoverFailed": "Could not load models: {{error}}",
+    "discoverEmpty": "Upstream returned no models — add them manually",
+    "discoverNeedsKey": "Enter the endpoint and API key first",
+    "discoveredCount": "{{count}} upstream",
+    "selectedCount": "{{count}} selected",
+    "monitoredCount": "{{count}} monitored",
+    "searchModels": "Filter models",
+    "selectAllMatching": "Select matching",
+    "clearSelection": "Clear selection",
+    "onlySelected": "Selected only",
+    "addManualModel": "Add manually",
+    "noModelsYet": "No models yet — load them from the upstream, or add one manually",
+    "noModelsMatch": "No model matches this filter",
+    "newUpstream": "New",
+    "monitored": "Monitored",
+    "modelDetails": "Details",
+    "modelIdInvalid": "Invalid model ID"
   },
   "config": {
     "configuration": "Configuration",
@@ -511,8 +530,7 @@
     "alertConfirmDelay": "Confirm Delay",
     "alertConfirmFailThreshold": "Fail Threshold K",
     "alertOn": "Alert enabled",
-    "alertOff": "Alert disabled",
-    "latency": "Latency"
+    "alertOff": "Alert disabled"
   },
   "history": {
     "loading": "Loading...",

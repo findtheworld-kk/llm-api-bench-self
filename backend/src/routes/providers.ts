@@ -2,10 +2,16 @@ import { Router, Request, Response } from 'express';
 import { providerStore } from '../services/providerStore';
 import { monitorConfigStore } from '../services/monitorConfigStore';
 import { testProviderConnection } from '../providers/adapter';
+import { listRemoteModels } from '../providers/modelDiscovery';
 import { ProviderConfigInput } from '../types';
 import { v4 as uuidv4 } from 'uuid';
 import { validate } from '../validation/middleware';
-import { ProviderConfigInputSchema, ProviderConfigUpdateSchema, TestConnectionSchema } from '../validation/schemas';
+import {
+  ProviderConfigInputSchema,
+  ProviderConfigUpdateSchema,
+  TestConnectionSchema,
+  DiscoverModelsSchema,
+} from '../validation/schemas';
 
 const router = Router();
 
@@ -61,6 +67,19 @@ router.post('/test-connection', validate(TestConnectionSchema), async (req: Requ
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Connection test failed';
     res.status(502).json({ error: 'Connection test failed', details: message });
+  }
+});
+
+// POST /api/providers/discover-models - List upstream models for an unsaved config
+router.post('/discover-models', validate(DiscoverModelsSchema), async (req: Request, res: Response) => {
+  const { endpoint, apiKey, format } = req.body;
+
+  try {
+    const models = await listRemoteModels({ endpoint, apiKey, format });
+    res.json({ models });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Model discovery failed';
+    res.status(502).json({ error: message });
   }
 });
 
@@ -166,6 +185,32 @@ router.post('/:id/test', async (req: Request, res: Response) => {
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Connection test failed';
     res.status(502).json({ error: 'Connection test failed', details: message });
+  }
+});
+
+// POST /api/providers/:id/discover-models - List upstream models for a saved provider
+router.post('/:id/discover-models', async (req: Request, res: Response) => {
+  const provider = providerStore.get(req.params.id);
+  if (!provider) {
+    return res.status(404).json({ error: 'Provider not found' });
+  }
+
+  // The form sends a key only when the user typed a new one; otherwise use the stored one.
+  const typedKey = typeof req.body?.apiKey === 'string' ? req.body.apiKey.trim() : '';
+  const apiKey = typedKey || providerStore.getDecryptedApiKey(req.params.id);
+  if (!apiKey) {
+    return res.status(500).json({ error: 'Failed to decrypt API key' });
+  }
+
+  const endpoint = typeof req.body?.endpoint === 'string' && req.body.endpoint.trim() ? req.body.endpoint : provider.endpoint;
+  const format = req.body?.format || provider.format;
+
+  try {
+    const models = await listRemoteModels({ endpoint, apiKey, format });
+    res.json({ models });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Model discovery failed';
+    res.status(502).json({ error: message });
   }
 });
 

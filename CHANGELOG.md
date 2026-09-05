@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+- **Upstream model discovery.** The provider form can now read the model list from the endpoint itself: fill in Endpoint URL and API key, press "Connect & load models", and every model the upstream advertises appears as a checkbox list — no more typing model IDs by hand. Context size, vision and tool-calling flags are filled in from the upstream response where it provides them (OpenRouter-style gateways do; plain OpenAI does not, and those fields fall back to the previous defaults). New endpoints: `POST /api/providers/discover-models` for an unsaved form and `POST /api/providers/:id/discover-models` for a saved provider, which reuses the stored key unless a new one was typed
+
+### Changed
+- **The model area of the provider form is a list, not a grid of cards.** One row per model with a filter box, "select matching" and "selected only", inline display-name editing, and per-row details (context size, vision, tools, streaming, active) behind a disclosure. This keeps the form usable at the scale upstreams actually serve — 431 models on OpenRouter today, where 20 selected models used to mean 1762 px of card grid
+- A row is tagged "Monitored" when the monitor is already checking that provider + model
+- A new provider starts with no model rows; models come from discovery or from "Add manually"
+- Model IDs may now be up to 128 characters and contain `:`, `@`, `+` and a leading `~` — the shapes real gateways return (`qwen/qwen3-235b-a22b:free`, `~anthropic/claude-opus-latest`). Display names may be up to 96 characters and contain `:`, `(`, `)` and `/`, so upstream-provided labels survive discovery
+
 ## [2.15.3] - 2026-05-15
 
 ### Changed

@@ -194,15 +194,29 @@ describe('Validation Schemas', () => {
       expect(result.success).toBe(true);
     });
 
-    it('should reject model ID longer than 64 chars', () => {
+    it('should reject model ID longer than 128 chars', () => {
       const result = ProviderConfigInputSchema.safeParse({
         name: 'Test-Provider',
         endpoint: 'https://api.example.com',
         apiKey: 'sk-test',
         format: 'openai',
-        models: [{ name: 'a'.repeat(65), contextSize: 4096, supportsVision: false, supportsTools: false }],
+        models: [{ name: 'a'.repeat(129), contextSize: 4096, supportsVision: false, supportsTools: false }],
       });
       expect(result.success).toBe(false);
+    });
+
+    it('should accept the id shapes model discovery returns', () => {
+      const result = ProviderConfigInputSchema.safeParse({
+        name: 'Test-Provider',
+        endpoint: 'https://api.example.com',
+        apiKey: 'sk-test',
+        format: 'openai',
+        models: [
+          { name: 'qwen/qwen3-235b-a22b:free', contextSize: 4096, supportsVision: false, supportsTools: false },
+          { name: 'gemini-2.5-flash@001', contextSize: 4096, supportsVision: false, supportsTools: false },
+        ],
+      });
+      expect(result.success).toBe(true);
     });
   });
 

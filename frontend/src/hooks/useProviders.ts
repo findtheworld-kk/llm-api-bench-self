@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { ProviderConfigResponse, ProviderConfigInput, TestConnectionResult } from '../types';
+import { ProviderConfigResponse, ProviderConfigInput, TestConnectionResult, DiscoveredModel } from '../types';
 import { apiFetch } from '../services/api';
 import { maskProviderConfig } from '../utils/demo';
 
@@ -120,6 +120,34 @@ export function useProviders() {
     [],
   );
 
+  /**
+   * Ask the upstream which models it serves. For a saved provider the stored key
+   * is used unless the form carries a freshly typed one.
+   */
+  const discoverModels = useCallback(
+    async (input: {
+      id?: string | null;
+      endpoint: string;
+      apiKey: string;
+      format: string;
+    }): Promise<{ models: DiscoveredModel[]; error?: string }> => {
+      const url = input.id ? `${API_BASE}/providers/${input.id}/discover-models` : `${API_BASE}/providers/discover-models`;
+      try {
+        const res = await apiFetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ endpoint: input.endpoint, apiKey: input.apiKey, format: input.format }),
+        });
+        const data = await res.json();
+        if (!res.ok) return { models: [], error: data.error || 'Model discovery failed' };
+        return { models: (data.models || []) as DiscoveredModel[] };
+      } catch (err: any) {
+        return { models: [], error: err.message };
+      }
+    },
+    [],
+  );
+
   return {
     providers,
     loading,
@@ -130,5 +158,6 @@ export function useProviders() {
     deleteProvider,
     testConnection,
     testRawConnection,
+    discoverModels,
   };
 }
